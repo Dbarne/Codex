@@ -40,7 +40,7 @@ body::after {
 
 body::before {
   inset: 0;
-  background: url('/public/peony-scene.svg') center center / cover no-repeat;
+  background: url('/public/peony-background.jpg') center center / cover no-repeat;
   opacity: 0.16;
 }
 
