@@ -365,6 +365,29 @@ button.danger:hover {
   border-radius: 12px;
   border: 1px solid var(--line);
   background: #2a1f25;
+  object-fit: contain;
+}
+
+.video-preview:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  border: 0;
+  background: #000;
+  object-fit: contain;
+}
+
+.video-preview:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  border: 0;
+  background: #000;
+  object-fit: contain;
 }
 
 .photo-meta {
