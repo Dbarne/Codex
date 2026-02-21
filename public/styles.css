@@ -31,6 +31,11 @@ body {
   overflow-x: hidden;
 }
 
+html.upload-busy,
+body.upload-busy {
+  overscroll-behavior-y: none;
+}
+
 body::before,
 body::after {
   content: '';
