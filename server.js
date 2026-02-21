@@ -18,8 +18,12 @@ const port = Number(process.env.PORT || 3000);
 const configuredBaseUrl = (process.env.BASE_URL || '').trim().replace(/\/+$/, '');
 const execFileAsync = promisify(execFile);
 
-const dataDir = path.join(__dirname, 'data');
-const uploadDir = path.join(__dirname, 'uploads');
+const dataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(__dirname, 'data');
+const uploadDir = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.join(__dirname, 'uploads');
 
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadDir, { recursive: true });

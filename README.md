@@ -40,6 +40,21 @@ Deploy this app to Render, Railway, Fly.io, etc. Then set:
 
 - `BASE_URL=https://your-public-domain`
 
+#### Render quick setup
+
+1. Push this repo to GitHub.
+2. In Render: **New +** -> **Blueprint**.
+3. Select this repo. Render will detect `render.yaml`.
+4. Fill required env vars:
+   - `BASE_URL` (your Render URL, e.g. `https://your-service.onrender.com`)
+   - `ADMIN_USERNAME`
+   - `ADMIN_PASSWORD`
+5. Deploy.
+
+This project is configured to persist uploads + SQLite data on a Render disk:
+- `DATA_DIR=/var/data/data`
+- `UPLOAD_DIR=/var/data/uploads`
+
 ### Option B: Use a temporary tunnel from your machine
 
 Example with Cloudflare Tunnel:
