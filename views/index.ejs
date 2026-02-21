@@ -10,7 +10,14 @@
     <main class="container">
       <section class="card hero">
         <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
-        <p class="wedding-subtitle">Share your favorite moments with us</p>
+        <p class="wedding-subtitle">Share your favourite moments with us</p>
+        <img
+          src="/public/dan-abi.jpg"
+          alt="Dan and Abi"
+          class="couple-photo"
+          loading="lazy"
+          onerror="this.style.display='none'"
+        />
         <h1>Share Your Wedding Photos</h1>
         <p>Upload up to <strong><%= maxPerPerson %></strong> photos per person.</p>
         <p>Gallery capacity: <strong><%= totalCount %> / <%= maxTotal %></strong></p>
@@ -32,9 +39,19 @@
           <input id="name" name="name" type="text" maxlength="120" required />
 
           <label for="photos">Your photos (up to <%= maxPerPerson %>)</label>
-          <input id="photos" name="photos" type="file" accept="image/*" multiple required />
+          <input
+            id="photos"
+            name="photos"
+            type="file"
+            accept="image/*"
+            multiple
+            required
+            class="file-input-hidden"
+          />
+          <button type="button" id="choose-photos-btn" class="secondary">Choose Photos</button>
+          <p id="photo-selection-status" class="small-note">No photos selected yet.</p>
 
-          <button type="submit">Upload Photos</button>
+          <button type="submit" id="upload-submit-btn" disabled>Upload Photos</button>
         </form>
 
         <p class="small-note">Only image files are accepted (max 20MB each).</p>
@@ -51,5 +68,36 @@
         <a href="/admin/login">Admin Login</a>
       </section>
     </main>
+    <script>
+      (function () {
+        const fileInput = document.getElementById('photos');
+        const chooseButton = document.getElementById('choose-photos-btn');
+        const submitButton = document.getElementById('upload-submit-btn');
+        const status = document.getElementById('photo-selection-status');
+
+        if (!fileInput || !chooseButton || !submitButton || !status) {
+          return;
+        }
+
+        function updateSelectionState() {
+          const count = fileInput.files ? fileInput.files.length : 0;
+          if (count === 0) {
+            status.textContent = 'No photos selected yet.';
+            submitButton.disabled = true;
+            return;
+          }
+
+          status.textContent = `${count} photo${count === 1 ? '' : 's'} selected.`;
+          submitButton.disabled = false;
+        }
+
+        chooseButton.addEventListener('click', function () {
+          fileInput.click();
+        });
+
+        fileInput.addEventListener('change', updateSelectionState);
+        updateSelectionState();
+      })();
+    </script>
   </body>
 </html>
