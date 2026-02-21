@@ -147,11 +147,38 @@
             submitButton.disabled = false;
           }
 
+          let pendingPickerCheck = false;
+          function scheduleFallbackCheck() {
+            if (!pendingPickerCheck) {
+              pendingPickerCheck = true;
+              setTimeout(function () {
+                pendingPickerCheck = false;
+                updateSelectionState();
+              }, 180);
+            }
+          }
+
           chooseButton.addEventListener('click', function () {
-            fileInput.click();
+            try {
+              if (typeof fileInput.showPicker === 'function') {
+                fileInput.showPicker();
+              } else {
+                fileInput.click();
+              }
+            } catch (_e) {
+              fileInput.click();
+            }
+            scheduleFallbackCheck();
           });
 
+          fileInput.addEventListener('input', updateSelectionState);
           fileInput.addEventListener('change', updateSelectionState);
+          window.addEventListener('focus', scheduleFallbackCheck);
+          document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') {
+              scheduleFallbackCheck();
+            }
+          });
           updateSelectionState();
         }
 
