@@ -81,23 +81,38 @@ app.use(
 );
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const extension = path.extname(file.originalname);
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${unique}${extension}`);
+function storageDestination(_req, _file, cb) {
+  cb(null, uploadDir);
+}
+
+function storageFilename(_req, file, cb) {
+  const extension = path.extname(file.originalname);
+  const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+  cb(null, `${unique}${extension}`);
+}
+
+function photoFileFilter(_req, file, cb) {
+  if (!file.mimetype.startsWith('image/')) {
+    return cb(new Error('Only image files are allowed.'));
   }
+  cb(null, true);
+}
+
+function videoFileFilter(_req, file, cb) {
+  if (!file.mimetype.startsWith('video/')) {
+    return cb(new Error('Only video files are allowed.'));
+  }
+  cb(null, true);
+}
+
+const storage = multer.diskStorage({
+  destination: storageDestination,
+  filename: storageFilename
 });
 
 const photoUpload = multer({
   storage,
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed.'));
-    }
-    cb(null, true);
-  },
+  fileFilter: photoFileFilter,
   limits: {
     files: MAX_PHOTOS_PER_PERSON,
     fileSize: 20 * 1024 * 1024
@@ -106,12 +121,7 @@ const photoUpload = multer({
 
 const videoUpload = multer({
   storage,
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('video/')) {
-      return cb(new Error('Only video files are allowed.'));
-    }
-    cb(null, true);
-  },
+  fileFilter: videoFileFilter,
   limits: {
     files: MAX_VIDEOS_PER_PERSON,
     fileSize: MAX_VIDEO_SIZE_BYTES
@@ -704,7 +714,27 @@ app.use((err, _req, res, _next) => {
   return res.status(500).send('Unexpected server error');
 });
 
-app.listen(port, () => {
-  const displayUrl = configuredBaseUrl || `http://localhost:${port}`;
-  console.log(`Wedding photo app running on ${displayUrl}`);
-});
+function startServer() {
+  return app.listen(port, () => {
+    const displayUrl = configuredBaseUrl || `http://localhost:${port}`;
+    console.log(`Wedding photo app running on ${displayUrl}`);
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = {
+  app,
+  db,
+  startServer,
+  __internals: {
+    uploadDir,
+    dataDir,
+    storageDestination,
+    storageFilename,
+    photoFileFilter,
+    videoFileFilter
+  }
+};
