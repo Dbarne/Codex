@@ -130,7 +130,7 @@
       </section>
     </main>
 
-    <div id="upload-confirm-modal" class="confirm-modal" hidden>
+    <div id="upload-confirm-modal" class="confirm-modal" aria-hidden="true">
       <div class="confirm-modal-card">
         <h3>Large Upload Selected</h3>
         <p id="upload-confirm-text">This upload may take several minutes. Continue?</p>
@@ -155,6 +155,7 @@
         const confirmText = document.getElementById('upload-confirm-text');
         const confirmContinueBtn = document.getElementById('upload-confirm-continue');
         const confirmCancelBtn = document.getElementById('upload-confirm-cancel');
+        let confirmResolver = null;
 
         function formatBytes(bytes) {
           const gb = 1024 * 1024 * 1024;
@@ -165,33 +166,42 @@
           return `${(bytes / mb).toFixed(1)} MB`;
         }
 
-        function askLargeUploadConfirmation(totalBytes, kindLabel) {
+        function closeConfirmModal(choice) {
+          if (confirmResolver) {
+            const resolver = confirmResolver;
+            confirmResolver = null;
+            resolver(choice);
+          }
+
+          if (confirmModal) {
+            confirmModal.classList.remove('is-open');
+            confirmModal.setAttribute('aria-hidden', 'true');
+          }
+        }
+
+        function askConfirmation(message, continueLabel) {
           return new Promise(function (resolve) {
             if (!confirmModal || !confirmText || !confirmContinueBtn || !confirmCancelBtn) {
               resolve(true);
               return;
             }
 
-            confirmText.textContent = `You selected ${formatBytes(totalBytes)} of ${kindLabel}. This may take several minutes. Keep this page open while it uploads.`;
-            confirmModal.hidden = false;
-
-            function cleanup(choice) {
-              confirmModal.hidden = true;
-              confirmContinueBtn.removeEventListener('click', onContinue);
-              confirmCancelBtn.removeEventListener('click', onCancel);
-              resolve(choice);
+            if (confirmResolver) {
+              closeConfirmModal(false);
             }
 
-            function onContinue() {
-              cleanup(true);
-            }
+            confirmResolver = resolve;
+            confirmText.textContent = message;
+            confirmContinueBtn.textContent = continueLabel || 'Continue';
+            confirmModal.classList.add('is-open');
+            confirmModal.setAttribute('aria-hidden', 'false');
 
-            function onCancel() {
-              cleanup(false);
-            }
-
-            confirmContinueBtn.addEventListener('click', onContinue);
-            confirmCancelBtn.addEventListener('click', onCancel);
+            confirmContinueBtn.onclick = function () {
+              closeConfirmModal(true);
+            };
+            confirmCancelBtn.onclick = function () {
+              closeConfirmModal(false);
+            };
           });
         }
 
@@ -255,16 +265,27 @@
             if (config.preparingLabel) {
               status.textContent = config.preparingLabel;
             }
-            try {
-              if (typeof fileInput.showPicker === 'function') {
-                fileInput.showPicker();
-              } else {
+            askConfirmation(
+              config.pickerConfirmText || 'Open your phone gallery to choose files?',
+              config.pickerConfirmCta || 'Open Gallery'
+            ).then(function (shouldContinue) {
+              if (!shouldContinue) {
+                waitingForPicker = false;
+                status.textContent = config.emptyLabel;
+                return;
+              }
+
+              try {
+                if (typeof fileInput.showPicker === 'function') {
+                  fileInput.showPicker();
+                } else {
+                  fileInput.click();
+                }
+              } catch (_e) {
                 fileInput.click();
               }
-            } catch (_e) {
-              fileInput.click();
-            }
-            scheduleFallbackCheck();
+              scheduleFallbackCheck();
+            });
           });
 
           fileInput.addEventListener('input', updateSelectionState);
@@ -284,6 +305,8 @@
           submitButtonId: 'upload-photos-submit-btn',
           statusId: 'photo-selection-status',
           emptyLabel: 'No photos selected yet.',
+          pickerConfirmText: 'Open your gallery to choose photos?',
+          pickerConfirmCta: 'Continue Upload',
           itemLabel: 'photo'
         });
 
@@ -294,6 +317,8 @@
           statusId: 'video-selection-status',
           emptyLabel: 'No videos selected yet.',
           preparingLabel: 'Preparing selected videos... this can take a moment on iPhone/Android.',
+          pickerConfirmText: 'Open your gallery to choose videos? Large videos can take extra time to prepare.',
+          pickerConfirmCta: 'Continue Upload',
           itemLabel: 'video'
         });
 
@@ -385,7 +410,10 @@
 
             Promise.resolve(
               totalPhotoBytes >= 120 * 1024 * 1024
-                ? askLargeUploadConfirmation(totalPhotoBytes, 'photos')
+                ? askConfirmation(
+                    `You selected ${formatBytes(totalPhotoBytes)} of photos. This may take several minutes. Keep this page open while it uploads.`,
+                    'Continue Upload'
+                  )
                 : true
             ).then(function (shouldContinue) {
               if (!shouldContinue) {
@@ -592,7 +620,10 @@
 
             Promise.resolve(
               totalVideoBytes >= 350 * 1024 * 1024
-                ? askLargeUploadConfirmation(totalVideoBytes, 'videos')
+                ? askConfirmation(
+                    `You selected ${formatBytes(totalVideoBytes)} of videos. This may take several minutes. Keep this page open while it uploads.`,
+                    'Continue Upload'
+                  )
                 : true
             ).then(function (shouldContinue) {
               if (!shouldContinue) {

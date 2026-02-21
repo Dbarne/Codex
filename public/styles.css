@@ -561,11 +561,15 @@ button.danger:hover {
 .confirm-modal {
   position: fixed;
   inset: 0;
-  display: grid;
+  display: none;
   place-items: center;
   background: rgba(49, 24, 35, 0.5);
   padding: 1rem;
   z-index: 40;
+}
+
+.confirm-modal.is-open {
+  display: grid;
 }
 
 .confirm-modal-card {
