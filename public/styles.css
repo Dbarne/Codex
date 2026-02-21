@@ -465,36 +465,34 @@ button.danger:hover {
 
 .video-preview:fullscreen {
   position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  width: auto !important;
+  inset: 0 !important;
+  width: 100vw !important;
   height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  transform: translate(-50%, -50%) !important;
-  margin: 0 !important;
+  margin: auto !important;
   border-radius: 0;
   border: 0;
   background: #000;
   object-fit: contain;
   object-position: center center;
+  transform: none !important;
 }
 
 .video-preview:-webkit-full-screen {
   position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  width: auto !important;
+  inset: 0 !important;
+  width: 100vw !important;
   height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  transform: translate(-50%, -50%) !important;
-  margin: 0 !important;
+  margin: auto !important;
   border-radius: 0;
   border: 0;
   background: #000;
   object-fit: contain;
   object-position: center center;
+  transform: none !important;
 }
 
 .video-preview:fullscreen::backdrop {
