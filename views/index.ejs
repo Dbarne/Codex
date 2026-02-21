@@ -240,9 +240,13 @@
         ) {
           let activeVideoUploadXhr = null;
           let videoUploadBusy = false;
+          let allowPageLeave = false;
 
           function setVideoUploadBusyState(isBusy) {
             videoUploadBusy = isBusy;
+            if (!isBusy) {
+              allowPageLeave = false;
+            }
           }
 
           function formatBytes(bytes) {
@@ -350,11 +354,14 @@
               }
 
               if (payload && payload.redirectUrl) {
+                setVideoUploadBusyState(false);
+                allowPageLeave = true;
                 window.location.href = payload.redirectUrl;
                 return;
               }
 
               setUploadingUiState(false, 'Upload finished. Refreshing...');
+              allowPageLeave = true;
               window.location.reload();
             };
 
@@ -377,7 +384,7 @@
           updateVideoSizeWarning();
 
           window.addEventListener('beforeunload', function (event) {
-            if (!videoUploadBusy) {
+            if (!videoUploadBusy || allowPageLeave) {
               return;
             }
             event.preventDefault();
