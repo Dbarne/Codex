@@ -64,6 +64,11 @@ db.exec(`
     uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (uploader_id) REFERENCES uploaders(id)
   );
+
+  CREATE INDEX IF NOT EXISTS idx_photos_uploader_id ON photos(uploader_id);
+  CREATE INDEX IF NOT EXISTS idx_videos_uploader_id ON videos(uploader_id);
+  CREATE INDEX IF NOT EXISTS idx_photos_uploaded_at_id ON photos(uploaded_at DESC, id DESC);
+  CREATE INDEX IF NOT EXISTS idx_videos_uploaded_at_id ON videos(uploaded_at DESC, id DESC);
 `);
 
 app.set('view engine', 'ejs');
@@ -223,6 +228,27 @@ function uploadTabFromRequest(req) {
   return req.path === '/upload/videos' ? 'videos' : 'photos';
 }
 
+function parsePage(value) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return 1;
+  }
+  return parsed;
+}
+
+function sendUploadResponse(req, res, tab, kind, message, isError = false) {
+  const redirectUrl = `/?tab=${tab}&${isError ? 'error' : 'message'}=${encodeURIComponent(message)}`;
+  if (String(req.query.ajax || '') === '1') {
+    return res.status(isError ? 400 : 200).json({
+      ok: !isError,
+      redirectUrl,
+      message,
+      kind
+    });
+  }
+  return res.redirect(redirectUrl);
+}
+
 function resolveBaseUrl(req) {
   if (configuredBaseUrl) {
     return configuredBaseUrl;
@@ -328,11 +354,11 @@ app.post('/upload/videos', videoUpload.array('videos', MAX_VIDEOS_PER_PERSON), (
     const name = (req.body.name || '').trim();
     if (!name) {
       uploadedFiles.forEach((f) => safeUnlink(f.path));
-      return res.redirect('/?tab=videos&error=' + encodeURIComponent('Please provide your name.'));
+      return sendUploadResponse(req, res, 'videos', 'video', 'Please provide your name.', true);
     }
 
     if (uploadedFiles.length === 0) {
-      return res.redirect('/?tab=videos&error=' + encodeURIComponent('Please select at least one video.'));
+      return sendUploadResponse(req, res, 'videos', 'video', 'Please select at least one video.', true);
     }
 
     const uploader = getOrCreateUploader(name);
@@ -349,7 +375,7 @@ app.post('/upload/videos', videoUpload.array('videos', MAX_VIDEOS_PER_PERSON), (
         remainingGlobal <= 0
           ? 'Video upload limit reached: this gallery is full.'
           : `You have already uploaded your maximum of ${MAX_VIDEOS_PER_PERSON} videos.`;
-      return res.redirect('/?tab=videos&error=' + encodeURIComponent(reason));
+      return sendUploadResponse(req, res, 'videos', 'video', reason, true);
     }
 
     const acceptedFiles = uploadedFiles.slice(0, allowedNow);
@@ -376,10 +402,10 @@ app.post('/upload/videos', videoUpload.array('videos', MAX_VIDEOS_PER_PERSON), (
       message += ` ${limitedCount} video${limitedCount === 1 ? ' was' : 's were'} skipped due to upload limits.`;
     }
 
-    return res.redirect('/?tab=videos&message=' + encodeURIComponent(message));
+    return sendUploadResponse(req, res, 'videos', 'video', message, false);
   } catch (error) {
     uploadedFiles.forEach((f) => safeUnlink(f.path));
-    return res.redirect('/?tab=videos&error=' + encodeURIComponent(error.message || 'Upload failed.'));
+    return sendUploadResponse(req, res, 'videos', 'video', error.message || 'Upload failed.', true);
   }
 });
 
@@ -415,9 +441,15 @@ app.post('/admin/logout', (req, res) => {
 });
 
 function renderAdminMedia(req, res, activeTab) {
+  const PAGE_SIZE = 24;
+  const page = parsePage(req.query.page);
   const photos = db.prepare('SELECT COUNT(*) as count FROM photos').get().count;
   const videos = db.prepare('SELECT COUNT(*) as count FROM videos').get().count;
   const isVideosTab = activeTab === 'videos';
+  const activeTotal = isVideosTab ? videos : photos;
+  const totalPages = Math.max(1, Math.ceil(activeTotal / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const safeOffset = (safePage - 1) * PAGE_SIZE;
   const records = db
     .prepare(
       isVideosTab
@@ -432,6 +464,7 @@ function renderAdminMedia(req, res, activeTab) {
       FROM videos
       JOIN uploaders ON uploaders.id = videos.uploader_id
       ORDER BY videos.uploaded_at DESC, videos.id DESC
+      LIMIT ? OFFSET ?
     `
         : `
       SELECT
@@ -444,14 +477,15 @@ function renderAdminMedia(req, res, activeTab) {
       FROM photos
       JOIN uploaders ON uploaders.id = photos.uploader_id
       ORDER BY photos.uploaded_at DESC, photos.id DESC
+      LIMIT ? OFFSET ?
     `
     )
-    .all();
+    .all(PAGE_SIZE, safeOffset);
 
   res.render('admin-photos', {
     activeTab,
     mediaItems: records,
-    totalCount: records.length,
+    totalCount: activeTotal,
     maxTotal: isVideosTab ? MAX_TOTAL_VIDEOS : MAX_TOTAL_PHOTOS,
     maxPerPerson: isVideosTab ? MAX_VIDEOS_PER_PERSON : MAX_PHOTOS_PER_PERSON,
     maxVideoSizeMb: MAX_VIDEO_SIZE_MB,
@@ -459,6 +493,8 @@ function renderAdminMedia(req, res, activeTab) {
     maxTotalVideos: MAX_TOTAL_VIDEOS,
     photoCount: photos,
     videoCount: videos,
+    page: safePage,
+    totalPages: totalPages,
     message: req.query.message || '',
     error: req.query.error || ''
   });
@@ -703,11 +739,19 @@ app.use((err, _req, res, _next) => {
           ? `You can upload up to ${MAX_VIDEOS_PER_PERSON} videos at a time.`
           : `You can upload up to ${MAX_PHOTOS_PER_PERSON} photos at a time.`;
     }
+    if (String(_req.query.ajax || '') === '1') {
+      return res.status(400).json({ ok: false, message, redirectUrl: `/?tab=${uploadTab}&error=${encodeURIComponent(message)}` });
+    }
     return res.redirect(`/?tab=${uploadTab}&error=` + encodeURIComponent(message));
   }
 
   if (err) {
     const uploadTab = uploadTabFromRequest(_req);
+    if (String(_req.query.ajax || '') === '1') {
+      return res
+        .status(500)
+        .json({ ok: false, message: err.message || 'Unexpected error occurred.', redirectUrl: `/?tab=${uploadTab}&error=${encodeURIComponent(err.message || 'Unexpected error occurred.')}` });
+    }
     return res.redirect(`/?tab=${uploadTab}&error=` + encodeURIComponent(err.message || 'Unexpected error occurred.'));
   }
 

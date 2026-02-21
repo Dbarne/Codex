@@ -57,7 +57,7 @@
         </section>
 
         <section class="upload-panel" data-upload-panel="videos" role="tabpanel">
-          <form action="/upload/videos" method="POST" enctype="multipart/form-data" class="upload-form">
+          <form action="/upload/videos" method="POST" enctype="multipart/form-data" class="upload-form" id="video-upload-form">
             <label for="name-videos">Your name</label>
             <input id="name-videos" name="name" type="text" maxlength="120" required />
 
@@ -76,6 +76,11 @@
 
             <button type="submit" id="upload-videos-submit-btn" disabled>Upload Videos</button>
           </form>
+
+          <div id="video-upload-progress" class="upload-progress" hidden>
+            <div id="video-upload-progress-bar" class="upload-progress-bar"></div>
+          </div>
+          <p id="video-upload-status" class="small-note" hidden>Preparing upload...</p>
 
           <p class="small-note">
             Video uploads are accepted up to <%= maxVideoSizeMb %>MB per file for better quality clips.
@@ -199,6 +204,83 @@
           emptyLabel: 'No videos selected yet.',
           itemLabel: 'video'
         });
+
+        const videoForm = document.getElementById('video-upload-form');
+        const videoInput = document.getElementById('videos');
+        const videoChooseBtn = document.getElementById('choose-videos-btn');
+        const videoSubmitBtn = document.getElementById('upload-videos-submit-btn');
+        const videoNameInput = document.getElementById('name-videos');
+        const videoProgress = document.getElementById('video-upload-progress');
+        const videoProgressBar = document.getElementById('video-upload-progress-bar');
+        const videoStatus = document.getElementById('video-upload-status');
+
+        if (
+          videoForm &&
+          videoInput &&
+          videoChooseBtn &&
+          videoSubmitBtn &&
+          videoNameInput &&
+          videoProgress &&
+          videoProgressBar &&
+          videoStatus
+        ) {
+          videoForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            if (!videoInput.files || videoInput.files.length === 0) {
+              videoStatus.hidden = false;
+              videoStatus.textContent = 'Choose at least one video first.';
+              return;
+            }
+
+            const formData = new FormData(videoForm);
+            videoProgress.hidden = false;
+            videoStatus.hidden = false;
+            videoStatus.textContent = 'Uploading videos...';
+            videoProgressBar.style.width = '0%';
+            videoSubmitBtn.disabled = true;
+            videoChooseBtn.disabled = true;
+            videoNameInput.readOnly = true;
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload/videos?ajax=1');
+
+            xhr.upload.onprogress = function (e) {
+              if (!e.lengthComputable) {
+                return;
+              }
+              const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
+              videoProgressBar.style.width = `${pct}%`;
+              videoStatus.textContent = `Uploading videos... ${pct}%`;
+            };
+
+            xhr.onload = function () {
+              let payload = null;
+              try {
+                payload = JSON.parse(xhr.responseText || '{}');
+              } catch (_e) {
+                payload = null;
+              }
+
+              if (payload && payload.redirectUrl) {
+                window.location.href = payload.redirectUrl;
+                return;
+              }
+
+              videoStatus.textContent = 'Upload finished. Refreshing...';
+              window.location.reload();
+            };
+
+            xhr.onerror = function () {
+              videoStatus.textContent = 'Upload failed. Please try again.';
+              videoSubmitBtn.disabled = false;
+              videoChooseBtn.disabled = false;
+              videoNameInput.readOnly = false;
+            };
+
+            xhr.send(formData);
+          });
+        }
 
         setActiveTab(initialTab);
       })();
