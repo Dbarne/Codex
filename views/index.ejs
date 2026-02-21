@@ -9,15 +9,18 @@
   <body class="guest-page">
     <main class="container">
       <section class="card hero">
+        <div class="hero-banner">
+          <img
+            src="/public/dan-abi.jpg"
+            alt="Dan and Abi"
+            class="hero-banner-image"
+            loading="lazy"
+            onerror="this.closest('.hero-banner').style.display='none'"
+          />
+          <div class="hero-banner-overlay" aria-hidden="true"></div>
+        </div>
         <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
         <p class="wedding-subtitle">Share your favourite moments with us</p>
-        <img
-          src="/public/dan-abi.jpg"
-          alt="Dan and Abi"
-          class="couple-photo"
-          loading="lazy"
-          onerror="this.style.display='none'"
-        />
         <h1>Share Your Wedding Photos</h1>
         <p>Upload up to <strong><%= maxPerPerson %></strong> photos per person.</p>
         <p>Gallery capacity: <strong><%= totalCount %> / <%= maxTotal %></strong></p>
