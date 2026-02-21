@@ -9,15 +9,21 @@
   <body class="guest-page">
     <main class="container">
       <section class="card hero">
+        <p class="eyebrow">Wedding Memory Collection</p>
         <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
         <p class="wedding-subtitle">Share your favourite moments with us</p>
         <h1>Share Your Wedding Photos and Videos</h1>
-        <p>Photo gallery: <strong><%= totalPhotoCount %> / <%= maxTotalPhotos %></strong></p>
-        <p>Video gallery: <strong><%= totalVideoCount %> / <%= maxTotalVideos %></strong></p>
+        <div class="hero-metrics">
+          <p class="metric-chip">Photos: <strong><%= totalPhotoCount %> / <%= maxTotalPhotos %></strong></p>
+          <p class="metric-chip">Videos: <strong><%= totalVideoCount %> / <%= maxTotalVideos %></strong></p>
+        </div>
       </section>
 
       <section class="card upload-section" data-active-tab="<%= activeTab %>">
-        <h2>Upload</h2>
+        <div class="section-head">
+          <h2>Upload</h2>
+          <p class="section-subtitle">Choose photos or videos and upload in a few taps.</p>
+        </div>
 
         <% if (message) { %>
           <p class="alert success"><%= message %></p>

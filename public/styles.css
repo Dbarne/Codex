@@ -1,7 +1,8 @@
 :root {
   --bg: #fff7fa;
   --bg-soft: #ffeef4;
-  --card: rgba(255, 255, 255, 0.92);
+  --card: rgba(255, 255, 255, 0.94);
+  --card-strong: rgba(255, 255, 255, 0.97);
   --ink: #4b2433;
   --ink-muted: #7d5160;
   --accent: #d95f8d;
@@ -69,7 +70,7 @@ body::after {
 .card {
   background: var(--card);
   border: 1px solid rgba(240, 201, 216, 0.82);
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(5px);
   border-radius: 18px;
   padding: 1.25rem;
   box-shadow: var(--shadow);
@@ -106,7 +107,26 @@ h2 {
 }
 
 .hero h1 {
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.65rem;
+  max-width: 20ch;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8f5870;
+}
+
+.eyebrow::before {
+  content: '';
+  width: 24px;
+  height: 1px;
+  background: rgba(143, 88, 112, 0.45);
 }
 
 .wedding-title {
@@ -125,9 +145,43 @@ h2 {
   color: #8a6070;
 }
 
+.hero-metrics {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.metric-chip {
+  margin: 0;
+  padding: 0.48rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 239, 246, 0.75);
+  border: 1px solid rgba(240, 201, 216, 0.95);
+  color: #6e3f54;
+  font-size: 0.9rem;
+}
+
+.section-head {
+  margin-bottom: 0.45rem;
+}
+
+.section-head h2 {
+  margin-bottom: 0.25rem;
+}
+
+.section-subtitle {
+  margin: 0;
+  color: #875b6d;
+  font-size: 0.92rem;
+}
+
 .upload-form {
   display: grid;
   gap: 0.65rem;
+  background: rgba(255, 252, 253, 0.88);
+  border: 1px solid rgba(240, 201, 216, 0.78);
+  border-radius: 14px;
+  padding: 0.95rem;
 }
 
 .upload-tabs {
@@ -148,7 +202,7 @@ button.upload-tab-btn {
   color: #8a4662;
   cursor: pointer;
   filter: none;
-  transition: background 120ms ease;
+  transition: background 120ms ease, transform 120ms ease;
 }
 
 button.upload-tab-btn.active {
@@ -158,6 +212,7 @@ button.upload-tab-btn.active {
 
 button.upload-tab-btn:hover {
   background: rgba(217, 95, 141, 0.16);
+  transform: translateY(-1px);
 }
 
 button.upload-tab-btn.active:hover {
@@ -200,7 +255,7 @@ input[type='file'] {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0.76rem;
-  background: #fffdfd;
+  background: #fffdfe;
   color: var(--ink);
   transition: border-color 140ms ease, box-shadow 140ms ease;
 }
@@ -228,12 +283,13 @@ button {
   color: #fff;
   background: linear-gradient(135deg, var(--accent), #cf4d80);
   cursor: pointer;
-  transition: transform 120ms ease, filter 120ms ease;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
 }
 
 button:hover {
   background: linear-gradient(135deg, var(--accent-strong), #ac2f5f);
   filter: saturate(1.06);
+  box-shadow: 0 8px 16px rgba(191, 63, 114, 0.25);
 }
 
 button:active {
@@ -335,6 +391,10 @@ button.danger:hover {
   background: linear-gradient(135deg, var(--accent), #cf4d80);
 }
 
+.admin-tab-link:hover {
+  background: rgba(217, 95, 141, 0.14);
+}
+
 .admin-actions {
   display: flex;
   gap: 0.6rem;
@@ -349,6 +409,12 @@ button.danger:hover {
 
 .photo-card {
   animation: bloom-in 350ms ease-out both;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.photo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 34px rgba(133, 52, 86, 0.15);
 }
 
 .photo-card img {
@@ -413,6 +479,11 @@ button.danger:hover {
   word-break: break-word;
 }
 
+.media-card .photo-meta {
+  display: grid;
+  gap: 0.24rem;
+}
+
 .admin-link a,
 .small-note a {
   color: var(--accent-strong);
@@ -441,6 +512,12 @@ button.danger:hover {
   color: #7a3c58;
   border: 1px solid rgba(217, 95, 141, 0.35);
   background: rgba(255, 240, 247, 0.6);
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.page-link:hover {
+  background: rgba(255, 226, 238, 0.88);
+  transform: translateY(-1px);
 }
 
 .page-link.disabled {
@@ -522,8 +599,22 @@ button.danger:hover {
     margin-bottom: 0.55rem;
   }
 
+  .eyebrow {
+    font-size: 0.7rem;
+    margin-bottom: 0.4rem;
+  }
+
   .hero h1 {
     margin-bottom: 0.4rem;
+  }
+
+  .hero-metrics {
+    gap: 0.45rem;
+  }
+
+  .metric-chip {
+    font-size: 0.84rem;
+    padding: 0.42rem 0.62rem;
   }
 
   .qr-image {
@@ -558,6 +649,10 @@ button.danger:hover {
   .admin-tab-link {
     flex: 1;
     text-align: center;
+  }
+
+  .upload-form {
+    padding: 0.78rem;
   }
 
   .admin-actions {
@@ -606,6 +701,11 @@ button.danger:hover {
 
   .card {
     padding: 0.82rem;
+  }
+
+  .upload-form {
+    padding: 0.7rem;
+    border-radius: 12px;
   }
 
   input[type='text'],

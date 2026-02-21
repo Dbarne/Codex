@@ -10,6 +10,7 @@
     <main class="container wide">
       <section class="card header-row">
         <div>
+          <p class="eyebrow">Control Centre</p>
           <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
           <p class="wedding-subtitle">Media collection admin</p>
           <h1><a href="/" class="title-link">Wedding Media Admin</a></h1>
@@ -64,7 +65,7 @@
         <% } %>
 
         <% mediaItems.forEach((item) => { %>
-          <article class="card photo-card">
+          <article class="card photo-card media-card">
             <% if (activeTab === 'videos') { %>
               <video controls preload="metadata" class="video-preview">
                 <source src="/admin/video/<%= item.id %>" type="<%= item.mime_type %>" />
