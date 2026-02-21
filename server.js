@@ -292,11 +292,11 @@ app.post('/upload', photoUpload.array('photos', MAX_PHOTOS_PER_PERSON), (req, re
     const name = (req.body.name || '').trim();
     if (!name) {
       uploadedFiles.forEach((f) => safeUnlink(f.path));
-      return res.redirect('/?tab=photos&error=' + encodeURIComponent('Please provide your name.'));
+      return sendUploadResponse(req, res, 'photos', 'photo', 'Please provide your name.', true);
     }
 
     if (uploadedFiles.length === 0) {
-      return res.redirect('/?tab=photos&error=' + encodeURIComponent('Please select at least one photo.'));
+      return sendUploadResponse(req, res, 'photos', 'photo', 'Please select at least one photo.', true);
     }
 
     const uploader = getOrCreateUploader(name);
@@ -313,7 +313,7 @@ app.post('/upload', photoUpload.array('photos', MAX_PHOTOS_PER_PERSON), (req, re
         remainingGlobal <= 0
           ? 'Upload limit reached: this gallery is full.'
           : 'You have already uploaded your maximum of 10 photos.';
-      return res.redirect('/?tab=photos&error=' + encodeURIComponent(reason));
+      return sendUploadResponse(req, res, 'photos', 'photo', reason, true);
     }
 
     const acceptedFiles = uploadedFiles.slice(0, allowedNow);
@@ -340,10 +340,10 @@ app.post('/upload', photoUpload.array('photos', MAX_PHOTOS_PER_PERSON), (req, re
       message += ` ${limitedCount} photo${limitedCount === 1 ? ' was' : 's were'} skipped due to upload limits.`;
     }
 
-    return res.redirect('/?tab=photos&message=' + encodeURIComponent(message));
+    return sendUploadResponse(req, res, 'photos', 'photo', message, false);
   } catch (error) {
     uploadedFiles.forEach((f) => safeUnlink(f.path));
-    return res.redirect('/?tab=photos&error=' + encodeURIComponent(error.message || 'Upload failed.'));
+    return sendUploadResponse(req, res, 'photos', 'photo', error.message || 'Upload failed.', true);
   }
 });
 

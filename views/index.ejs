@@ -39,7 +39,7 @@
         </div>
 
         <section class="upload-panel" data-upload-panel="photos" role="tabpanel">
-          <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+          <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form" id="photo-upload-form">
             <label for="name-photos">Your name</label>
             <input id="name-photos" name="name" type="text" maxlength="120" required />
 
@@ -57,7 +57,13 @@
             <p id="photo-selection-status" class="small-note">No photos selected yet.</p>
 
             <button type="submit" id="upload-photos-submit-btn" disabled>Upload Photos</button>
+            <button type="button" id="cancel-photo-upload-btn" class="secondary" hidden>Cancel Upload</button>
           </form>
+
+          <div id="photo-upload-progress" class="upload-progress" hidden>
+            <div id="photo-upload-progress-bar" class="upload-progress-bar"></div>
+          </div>
+          <p id="photo-upload-status" class="small-note" hidden>Preparing upload...</p>
 
           <p class="small-note">Only image files are accepted (max 20MB each).</p>
         </section>
@@ -220,6 +226,144 @@
           preparingLabel: 'Preparing selected videos... this can take a moment on iPhone/Android.',
           itemLabel: 'video'
         });
+
+        const photoForm = document.getElementById('photo-upload-form');
+        const photoInput = document.getElementById('photos');
+        const photoChooseBtn = document.getElementById('choose-photos-btn');
+        const photoSubmitBtn = document.getElementById('upload-photos-submit-btn');
+        const photoNameInput = document.getElementById('name-photos');
+        const photoProgress = document.getElementById('photo-upload-progress');
+        const photoProgressBar = document.getElementById('photo-upload-progress-bar');
+        const photoStatus = document.getElementById('photo-upload-status');
+        const cancelPhotoUploadBtn = document.getElementById('cancel-photo-upload-btn');
+
+        if (
+          photoForm &&
+          photoInput &&
+          photoChooseBtn &&
+          photoSubmitBtn &&
+          photoNameInput &&
+          photoProgress &&
+          photoProgressBar &&
+          photoStatus &&
+          cancelPhotoUploadBtn
+        ) {
+          let activePhotoUploadXhr = null;
+          let photoUploadBusy = false;
+          let allowPhotoPageLeave = false;
+
+          function setPhotoUploadBusyState(isBusy) {
+            photoUploadBusy = isBusy;
+            if (!isBusy) {
+              allowPhotoPageLeave = false;
+            }
+          }
+
+          function setPhotoUploadingUiState(isUploading, statusText) {
+            if (statusText) {
+              photoStatus.hidden = false;
+              photoStatus.textContent = statusText;
+            } else if (!isUploading) {
+              photoStatus.hidden = true;
+            }
+
+            photoSubmitBtn.disabled = isUploading || !photoInput.files || photoInput.files.length === 0;
+            photoChooseBtn.disabled = isUploading;
+            photoNameInput.readOnly = isUploading;
+            cancelPhotoUploadBtn.hidden = !isUploading;
+
+            if (!isUploading) {
+              activePhotoUploadXhr = null;
+              setPhotoUploadBusyState(false);
+              if (!photoInput.files || photoInput.files.length === 0) {
+                photoProgress.hidden = true;
+              }
+            }
+          }
+
+          cancelPhotoUploadBtn.addEventListener('click', function () {
+            if (activePhotoUploadXhr) {
+              activePhotoUploadXhr.abort();
+            } else {
+              setPhotoUploadingUiState(false, 'Upload cancelled.');
+            }
+          });
+
+          photoForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            if (!photoInput.files || photoInput.files.length === 0) {
+              setPhotoUploadingUiState(false, 'Choose at least one photo first.');
+              return;
+            }
+
+            const formData = new FormData(photoForm);
+            photoProgress.hidden = false;
+            photoProgressBar.style.width = '0%';
+            setPhotoUploadingUiState(true, 'Uploading photos...');
+            setPhotoUploadBusyState(true);
+
+            const xhr = new XMLHttpRequest();
+            activePhotoUploadXhr = xhr;
+            xhr.open('POST', '/upload?ajax=1');
+            xhr.timeout = 1000 * 60 * 10;
+
+            xhr.upload.onprogress = function (e) {
+              if (!e.lengthComputable) {
+                return;
+              }
+              const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
+              photoProgressBar.style.width = `${pct}%`;
+              if (pct >= 100) {
+                photoStatus.textContent = 'Upload sent. Finalising on server, please wait...';
+              } else {
+                photoStatus.textContent = `Uploading photos... ${pct}%`;
+              }
+            };
+
+            xhr.onload = function () {
+              let payload = null;
+              try {
+                payload = JSON.parse(xhr.responseText || '{}');
+              } catch (_e) {
+                payload = null;
+              }
+
+              if (payload && payload.redirectUrl) {
+                setPhotoUploadBusyState(false);
+                allowPhotoPageLeave = true;
+                window.location.href = payload.redirectUrl;
+                return;
+              }
+
+              setPhotoUploadingUiState(false, 'Upload finished. Refreshing...');
+              allowPhotoPageLeave = true;
+              window.location.reload();
+            };
+
+            xhr.onerror = function () {
+              setPhotoUploadingUiState(false, 'Upload failed. Please try again.');
+            };
+
+            xhr.onabort = function () {
+              setPhotoUploadingUiState(false, 'Upload cancelled.');
+            };
+
+            xhr.ontimeout = function () {
+              setPhotoUploadingUiState(false, 'Upload timed out. Please try again.');
+            };
+
+            xhr.send(formData);
+          });
+
+          window.addEventListener('beforeunload', function (event) {
+            if (!photoUploadBusy || allowPhotoPageLeave) {
+              return;
+            }
+            event.preventDefault();
+            event.returnValue = 'Photo upload is still in progress. Leaving now will cancel the upload.';
+          });
+        }
 
         const videoForm = document.getElementById('video-upload-form');
         const videoInput = document.getElementById('videos');
