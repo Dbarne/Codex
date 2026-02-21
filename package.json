@@ -1,0 +1,20 @@
+{
+  "name": "wedding-photo-collector",
+  "version": "1.0.0",
+  "description": "Wedding guest photo upload app with admin gallery",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "all": "^0.0.0",
+    "better-sqlite3": "^9.6.0",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.3"
+  }
+}

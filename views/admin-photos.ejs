@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wedding Photos Admin</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body class="admin-page">
+    <main class="container wide">
+      <section class="card header-row">
+        <div>
+          <h1>Wedding Photo Gallery</h1>
+          <p><strong><%= totalCount %></strong> / <strong><%= maxTotal %></strong> total photos</p>
+          <p>Per uploader cap: <strong><%= maxPerPerson %></strong> photos</p>
+        </div>
+        <div class="admin-actions">
+          <form action="/admin/photos/delete-all" method="POST" onsubmit="return confirm('Delete ALL photos permanently?');">
+            <button type="submit" class="danger">Delete All Photos</button>
+          </form>
+          <form action="/admin/logout" method="POST">
+            <button type="submit" class="secondary">Logout</button>
+          </form>
+        </div>
+      </section>
+
+      <% if (message) { %>
+        <p class="alert success"><%= message %></p>
+      <% } %>
+
+      <% if (error) { %>
+        <p class="alert error"><%= error %></p>
+      <% } %>
+
+      <section class="photo-grid">
+        <% if (photos.length === 0) { %>
+          <section class="card">
+            <p>No uploads yet.</p>
+          </section>
+        <% } %>
+
+        <% photos.forEach((photo) => { %>
+          <article class="card photo-card">
+            <a href="/admin/photo/<%= photo.id %>" target="_blank" rel="noreferrer">
+              <img src="/admin/photo/<%= photo.id %>" alt="<%= photo.original_name %>" loading="lazy" />
+            </a>
+            <div class="photo-meta">
+              <p><strong>Uploader:</strong> <%= photo.uploader_name %></p>
+              <p><strong>File:</strong> <%= photo.original_name %></p>
+              <p><strong>Uploaded:</strong> <%= photo.uploaded_at %></p>
+              <p><strong>Size:</strong> <%= (photo.size / (1024 * 1024)).toFixed(2) %> MB</p>
+              <form action="/admin/photo/<%= photo.id %>/delete" method="POST" onsubmit="return confirm('Delete this photo permanently?');">
+                <button type="submit" class="danger">Delete Photo</button>
+              </form>
+            </div>
+          </article>
+        <% }) %>
+      </section>
+    </main>
+  </body>
+</html>

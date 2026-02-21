@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wedding Photo Upload</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body class="guest-page">
+    <main class="container">
+      <section class="card hero">
+        <h1>Share Your Wedding Photos</h1>
+        <p>Upload up to <strong><%= maxPerPerson %></strong> photos per person.</p>
+        <p>Gallery capacity: <strong><%= totalCount %> / <%= maxTotal %></strong></p>
+      </section>
+
+      <section class="card upload-section">
+        <h2>Upload</h2>
+
+        <% if (message) { %>
+          <p class="alert success"><%= message %></p>
+        <% } %>
+
+        <% if (error) { %>
+          <p class="alert error"><%= error %></p>
+        <% } %>
+
+        <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+          <label for="name">Your name</label>
+          <input id="name" name="name" type="text" maxlength="120" required />
+
+          <label for="photos">Your photos (up to <%= maxPerPerson %>)</label>
+          <input id="photos" name="photos" type="file" accept="image/*" multiple required />
+
+          <button type="submit">Upload Photos</button>
+        </form>
+
+        <p class="small-note">Only image files are accepted (max 20MB each).</p>
+      </section>
+
+      <section class="card qr-section">
+        <h2>Guest QR Code</h2>
+        <p>Print or share this QR code so guests can open this upload page quickly.</p>
+        <img src="<%= qrCodeDataUrl %>" alt="QR code for wedding photo upload page" class="qr-image" />
+        <p class="url"><%= baseUrl %></p>
+      </section>
+
+      <section class="card admin-link">
+        <a href="/admin/login">Admin Login</a>
+      </section>
+    </main>
+  </body>
+</html>
