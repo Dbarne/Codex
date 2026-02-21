@@ -72,12 +72,13 @@
               class="file-input-hidden"
             />
             <button type="button" id="choose-videos-btn" class="secondary">Choose Videos</button>
-          <p id="video-selection-status" class="small-note">No videos selected yet.</p>
-          <p id="video-size-warning" class="alert error" hidden></p>
+            <p class="small-note">On iPhone/Android, the device&apos;s tick/done button is controlled by your phone and may pause while videos prepare.</p>
+            <p id="video-selection-status" class="small-note">No videos selected yet.</p>
+            <p id="video-size-warning" class="alert error" hidden></p>
 
-          <button type="submit" id="upload-videos-submit-btn" disabled>Upload Videos</button>
-          <button type="button" id="cancel-video-upload-btn" class="secondary" hidden>Cancel Upload</button>
-        </form>
+            <button type="submit" id="upload-videos-submit-btn" disabled>Upload Videos</button>
+            <button type="button" id="cancel-video-upload-btn" class="secondary" hidden>Cancel Upload</button>
+          </form>
 
           <div id="video-upload-progress" class="upload-progress" hidden>
             <div id="video-upload-progress-bar" class="upload-progress-bar"></div>
@@ -142,14 +143,16 @@
             return;
           }
 
+          let waitingForPicker = false;
           function updateSelectionState() {
             const count = fileInput.files ? fileInput.files.length : 0;
             if (count === 0) {
-              status.textContent = config.emptyLabel;
+              status.textContent = waitingForPicker && config.preparingLabel ? config.preparingLabel : config.emptyLabel;
               submitButton.disabled = true;
               return;
             }
 
+            waitingForPicker = false;
             status.textContent = `${count} ${config.itemLabel}${count === 1 ? '' : 's'} selected.`;
             submitButton.disabled = false;
           }
@@ -166,6 +169,10 @@
           }
 
           chooseButton.addEventListener('click', function () {
+            waitingForPicker = true;
+            if (config.preparingLabel) {
+              status.textContent = config.preparingLabel;
+            }
             try {
               if (typeof fileInput.showPicker === 'function') {
                 fileInput.showPicker();
@@ -204,6 +211,7 @@
           submitButtonId: 'upload-videos-submit-btn',
           statusId: 'video-selection-status',
           emptyLabel: 'No videos selected yet.',
+          preparingLabel: 'Preparing selected videos... this can take a moment on iPhone/Android.',
           itemLabel: 'video'
         });
 
