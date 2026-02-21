@@ -7,10 +7,6 @@ services:
     startCommand: npm start
     autoDeploy: true
     healthCheckPath: /
-    disk:
-      name: photos-disk
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 20
@@ -22,7 +18,3 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      - key: DATA_DIR
-        value: /var/data/data
-      - key: UPLOAD_DIR
-        value: /var/data/uploads
