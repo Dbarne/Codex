@@ -11,17 +11,36 @@
       <section class="card header-row">
         <div>
           <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
-          <p class="wedding-subtitle">Photo collection admin</p>
-          <h1><a href="/" class="title-link">Wedding Photo Gallery</a></h1>
-          <p><strong><%= totalCount %></strong> / <strong><%= maxTotal %></strong> total photos</p>
-          <p>Per uploader cap: <strong><%= maxPerPerson %></strong> photos</p>
+          <p class="wedding-subtitle">Media collection admin</p>
+          <h1><a href="/" class="title-link">Wedding Media Admin</a></h1>
+          <div class="admin-tabs">
+            <a href="/admin/photos" class="admin-tab-link <%= activeTab === 'photos' ? 'active' : '' %>">Photos</a>
+            <a href="/admin/videos" class="admin-tab-link <%= activeTab === 'videos' ? 'active' : '' %>">Videos</a>
+          </div>
+          <p><strong><%= photoCount %></strong> / <strong><%= maxTotalPhotos %></strong> total photos</p>
+          <p><strong><%= videoCount %></strong> / <strong><%= maxTotalVideos %></strong> total videos</p>
+          <p>
+            Active tab: <strong><%= totalCount %></strong> / <strong><%= maxTotal %></strong>
+            (<%= activeTab === 'videos' ? 'videos' : 'photos' %>)
+          </p>
+          <p>
+            Per uploader cap: <strong><%= maxPerPerson %></strong>
+            <%= activeTab === 'videos' ? 'videos' : 'photos' %>
+          </p>
+          <% if (activeTab === 'videos') { %>
+            <p>Video size limit: <strong><%= maxVideoSizeMb %>MB</strong> per file</p>
+          <% } %>
         </div>
         <div class="admin-actions">
-          <form action="/admin/photos/download" method="GET">
-            <button type="submit">Download All Photos</button>
+          <form action="<%= activeTab === 'videos' ? '/admin/videos/download' : '/admin/photos/download' %>" method="GET">
+            <button type="submit">Download All <%= activeTab === 'videos' ? 'Videos' : 'Photos' %></button>
           </form>
-          <form action="/admin/photos/delete-all" method="POST" onsubmit="return confirm('Delete ALL photos permanently?');">
-            <button type="submit" class="danger">Delete All Photos</button>
+          <form
+            action="<%= activeTab === 'videos' ? '/admin/videos/delete-all' : '/admin/photos/delete-all' %>"
+            method="POST"
+            onsubmit="return confirm('Delete ALL <%= activeTab === 'videos' ? 'videos' : 'photos' %> permanently?');"
+          >
+            <button type="submit" class="danger">Delete All <%= activeTab === 'videos' ? 'Videos' : 'Photos' %></button>
           </form>
           <form action="/admin/logout" method="POST">
             <button type="submit" class="secondary">Logout</button>
@@ -38,24 +57,35 @@
       <% } %>
 
       <section class="photo-grid">
-        <% if (photos.length === 0) { %>
+        <% if (mediaItems.length === 0) { %>
           <section class="card">
-            <p>No uploads yet.</p>
+            <p>No <%= activeTab === 'videos' ? 'video' : 'photo' %> uploads yet.</p>
           </section>
         <% } %>
 
-        <% photos.forEach((photo) => { %>
+        <% mediaItems.forEach((item) => { %>
           <article class="card photo-card">
-            <a href="/admin/photo/<%= photo.id %>" target="_blank" rel="noreferrer">
-              <img src="/admin/photo/<%= photo.id %>" alt="<%= photo.original_name %>" loading="lazy" />
-            </a>
+            <% if (activeTab === 'videos') { %>
+              <video controls preload="metadata" class="video-preview">
+                <source src="/admin/video/<%= item.id %>" type="<%= item.mime_type %>" />
+                Your browser does not support video playback.
+              </video>
+            <% } else { %>
+              <a href="/admin/photo/<%= item.id %>" target="_blank" rel="noreferrer">
+                <img src="/admin/photo/<%= item.id %>" alt="<%= item.original_name %>" loading="lazy" />
+              </a>
+            <% } %>
             <div class="photo-meta">
-              <p><strong>Uploader:</strong> <%= photo.uploader_name %></p>
-              <p><strong>File:</strong> <%= photo.original_name %></p>
-              <p><strong>Uploaded:</strong> <%= photo.uploaded_at %></p>
-              <p><strong>Size:</strong> <%= (photo.size / (1024 * 1024)).toFixed(2) %> MB</p>
-              <form action="/admin/photo/<%= photo.id %>/delete" method="POST" onsubmit="return confirm('Delete this photo permanently?');">
-                <button type="submit" class="danger">Delete Photo</button>
+              <p><strong>Uploader:</strong> <%= item.uploader_name %></p>
+              <p><strong>File:</strong> <%= item.original_name %></p>
+              <p><strong>Uploaded:</strong> <%= item.uploaded_at %></p>
+              <p><strong>Size:</strong> <%= (item.size / (1024 * 1024)).toFixed(2) %> MB</p>
+              <form
+                action="<%= activeTab === 'videos' ? ('/admin/video/' + item.id + '/delete') : ('/admin/photo/' + item.id + '/delete') %>"
+                method="POST"
+                onsubmit="return confirm('Delete this <%= activeTab === 'videos' ? 'video' : 'photo' %> permanently?');"
+              >
+                <button type="submit" class="danger">Delete <%= activeTab === 'videos' ? 'Video' : 'Photo' %></button>
               </form>
             </div>
           </article>

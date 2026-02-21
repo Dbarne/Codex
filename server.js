@@ -12,6 +12,10 @@ require('dotenv').config();
 
 const MAX_PHOTOS_PER_PERSON = 10;
 const MAX_TOTAL_PHOTOS = 600;
+const MAX_VIDEOS_PER_PERSON = Number(process.env.MAX_VIDEOS_PER_PERSON || 10);
+const MAX_TOTAL_VIDEOS = Number(process.env.MAX_TOTAL_VIDEOS || 400);
+const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_VIDEO_SIZE_MB || 1200);
+const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -49,6 +53,17 @@ db.exec(`
     uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (uploader_id) REFERENCES uploaders(id)
   );
+
+  CREATE TABLE IF NOT EXISTS videos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uploader_id INTEGER NOT NULL,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (uploader_id) REFERENCES uploaders(id)
+  );
 `);
 
 app.set('view engine', 'ejs');
@@ -75,7 +90,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({
+const photoUpload = multer({
   storage,
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
@@ -86,6 +101,20 @@ const upload = multer({
   limits: {
     files: MAX_PHOTOS_PER_PERSON,
     fileSize: 20 * 1024 * 1024
+  }
+});
+
+const videoUpload = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('video/')) {
+      return cb(new Error('Only video files are allowed.'));
+    }
+    cb(null, true);
+  },
+  limits: {
+    files: MAX_VIDEOS_PER_PERSON,
+    fileSize: MAX_VIDEO_SIZE_BYTES
   }
 });
 
@@ -123,6 +152,16 @@ function getTotalPhotoCount() {
   return row.count;
 }
 
+function getUploaderVideoCount(uploaderId) {
+  const row = db.prepare('SELECT COUNT(*) as count FROM videos WHERE uploader_id = ?').get(uploaderId);
+  return row.count;
+}
+
+function getTotalVideoCount() {
+  const row = db.prepare('SELECT COUNT(*) as count FROM videos').get();
+  return row.count;
+}
+
 function isAdmin(req) {
   return req.session && req.session.isAdmin === true;
 }
@@ -157,6 +196,23 @@ function sanitizeArchiveFilename(name) {
     .trim();
 }
 
+function cleanupOrphanUploaders() {
+  db.prepare(
+    `
+    DELETE FROM uploaders
+    WHERE id NOT IN (
+      SELECT uploader_id FROM photos
+      UNION
+      SELECT uploader_id FROM videos
+    )
+  `
+  ).run();
+}
+
+function uploadTabFromRequest(req) {
+  return req.path === '/upload/videos' ? 'videos' : 'photos';
+}
+
 function resolveBaseUrl(req) {
   if (configuredBaseUrl) {
     return configuredBaseUrl;
@@ -172,31 +228,39 @@ function resolveBaseUrl(req) {
 app.get('/', async (req, res) => {
   const baseUrl = resolveBaseUrl(req);
   const qrCodeDataUrl = await QRCode.toDataURL(baseUrl);
-  const totalCount = getTotalPhotoCount();
+  const totalPhotoCount = getTotalPhotoCount();
+  const totalVideoCount = getTotalVideoCount();
+  const requestedTab = String(req.query.tab || '').toLowerCase();
+  const activeTab = requestedTab === 'videos' ? 'videos' : 'photos';
 
   res.render('index', {
     qrCodeDataUrl,
     baseUrl,
-    maxPerPerson: MAX_PHOTOS_PER_PERSON,
-    maxTotal: MAX_TOTAL_PHOTOS,
-    totalCount,
+    maxPhotoPerPerson: MAX_PHOTOS_PER_PERSON,
+    maxTotalPhotos: MAX_TOTAL_PHOTOS,
+    totalPhotoCount,
+    maxVideoPerPerson: MAX_VIDEOS_PER_PERSON,
+    maxTotalVideos: MAX_TOTAL_VIDEOS,
+    maxVideoSizeMb: MAX_VIDEO_SIZE_MB,
+    totalVideoCount,
+    activeTab,
     message: req.query.message || '',
     error: req.query.error || ''
   });
 });
 
-app.post('/upload', upload.array('photos', MAX_PHOTOS_PER_PERSON), (req, res) => {
+app.post('/upload', photoUpload.array('photos', MAX_PHOTOS_PER_PERSON), (req, res) => {
   const uploadedFiles = req.files || [];
 
   try {
     const name = (req.body.name || '').trim();
     if (!name) {
       uploadedFiles.forEach((f) => safeUnlink(f.path));
-      return res.redirect('/?error=' + encodeURIComponent('Please provide your name.'));
+      return res.redirect('/?tab=photos&error=' + encodeURIComponent('Please provide your name.'));
     }
 
     if (uploadedFiles.length === 0) {
-      return res.redirect('/?error=' + encodeURIComponent('Please select at least one photo.'));
+      return res.redirect('/?tab=photos&error=' + encodeURIComponent('Please select at least one photo.'));
     }
 
     const uploader = getOrCreateUploader(name);
@@ -213,7 +277,7 @@ app.post('/upload', upload.array('photos', MAX_PHOTOS_PER_PERSON), (req, res) =>
         remainingGlobal <= 0
           ? 'Upload limit reached: this gallery is full.'
           : 'You have already uploaded your maximum of 10 photos.';
-      return res.redirect('/?error=' + encodeURIComponent(reason));
+      return res.redirect('/?tab=photos&error=' + encodeURIComponent(reason));
     }
 
     const acceptedFiles = uploadedFiles.slice(0, allowedNow);
@@ -240,10 +304,72 @@ app.post('/upload', upload.array('photos', MAX_PHOTOS_PER_PERSON), (req, res) =>
       message += ` ${limitedCount} photo${limitedCount === 1 ? ' was' : 's were'} skipped due to upload limits.`;
     }
 
-    return res.redirect('/?message=' + encodeURIComponent(message));
+    return res.redirect('/?tab=photos&message=' + encodeURIComponent(message));
   } catch (error) {
     uploadedFiles.forEach((f) => safeUnlink(f.path));
-    return res.redirect('/?error=' + encodeURIComponent(error.message || 'Upload failed.'));
+    return res.redirect('/?tab=photos&error=' + encodeURIComponent(error.message || 'Upload failed.'));
+  }
+});
+
+app.post('/upload/videos', videoUpload.array('videos', MAX_VIDEOS_PER_PERSON), (req, res) => {
+  const uploadedFiles = req.files || [];
+
+  try {
+    const name = (req.body.name || '').trim();
+    if (!name) {
+      uploadedFiles.forEach((f) => safeUnlink(f.path));
+      return res.redirect('/?tab=videos&error=' + encodeURIComponent('Please provide your name.'));
+    }
+
+    if (uploadedFiles.length === 0) {
+      return res.redirect('/?tab=videos&error=' + encodeURIComponent('Please select at least one video.'));
+    }
+
+    const uploader = getOrCreateUploader(name);
+    const uploaderCount = getUploaderVideoCount(uploader.id);
+    const totalCount = getTotalVideoCount();
+
+    const remainingForUploader = Math.max(0, MAX_VIDEOS_PER_PERSON - uploaderCount);
+    const remainingGlobal = Math.max(0, MAX_TOTAL_VIDEOS - totalCount);
+    const allowedNow = Math.min(remainingForUploader, remainingGlobal);
+
+    if (allowedNow <= 0) {
+      uploadedFiles.forEach((f) => safeUnlink(f.path));
+      const reason =
+        remainingGlobal <= 0
+          ? 'Video upload limit reached: this gallery is full.'
+          : `You have already uploaded your maximum of ${MAX_VIDEOS_PER_PERSON} videos.`;
+      return res.redirect('/?tab=videos&error=' + encodeURIComponent(reason));
+    }
+
+    const acceptedFiles = uploadedFiles.slice(0, allowedNow);
+    const rejectedFiles = uploadedFiles.slice(allowedNow);
+    rejectedFiles.forEach((f) => safeUnlink(f.path));
+
+    const insertVideo = db.prepare(
+      'INSERT INTO videos (uploader_id, filename, original_name, mime_type, size) VALUES (?, ?, ?, ?, ?)'
+    );
+
+    const transaction = db.transaction((files) => {
+      for (const file of files) {
+        insertVideo.run(uploader.id, file.filename, file.originalname, file.mimetype, file.size);
+      }
+    });
+
+    transaction(acceptedFiles);
+
+    const uploadedCount = acceptedFiles.length;
+    const limitedCount = rejectedFiles.length;
+
+    let message = `Thanks ${uploader.name}! Uploaded ${uploadedCount} video${uploadedCount === 1 ? '' : 's'}.`;
+    if (limitedCount > 0) {
+      message += ` ${limitedCount} video${limitedCount === 1 ? ' was' : 's were'} skipped due to upload limits.`;
+    }
+
+    return res.redirect('/?tab=videos&message=' + encodeURIComponent(message));
+  } catch (error) {
+    uploadedFiles.forEach((f) => safeUnlink(f.path));
+    return res.redirect('/?tab=videos&error=' + encodeURIComponent(error.message || 'Upload failed.'));
   }
 });
 
@@ -278,10 +404,26 @@ app.post('/admin/logout', (req, res) => {
   });
 });
 
-app.get('/admin/photos', requireAdmin, (req, res) => {
-  const photos = db
+function renderAdminMedia(req, res, activeTab) {
+  const photos = db.prepare('SELECT COUNT(*) as count FROM photos').get().count;
+  const videos = db.prepare('SELECT COUNT(*) as count FROM videos').get().count;
+  const isVideosTab = activeTab === 'videos';
+  const records = db
     .prepare(
-      `
+      isVideosTab
+        ? `
+      SELECT
+        videos.id,
+        videos.original_name,
+        videos.mime_type,
+        videos.size,
+        videos.uploaded_at,
+        uploaders.name as uploader_name
+      FROM videos
+      JOIN uploaders ON uploaders.id = videos.uploader_id
+      ORDER BY videos.uploaded_at DESC, videos.id DESC
+    `
+        : `
       SELECT
         photos.id,
         photos.original_name,
@@ -297,13 +439,27 @@ app.get('/admin/photos', requireAdmin, (req, res) => {
     .all();
 
   res.render('admin-photos', {
-    photos,
-    totalCount: photos.length,
-    maxTotal: MAX_TOTAL_PHOTOS,
-    maxPerPerson: MAX_PHOTOS_PER_PERSON,
+    activeTab,
+    mediaItems: records,
+    totalCount: records.length,
+    maxTotal: isVideosTab ? MAX_TOTAL_VIDEOS : MAX_TOTAL_PHOTOS,
+    maxPerPerson: isVideosTab ? MAX_VIDEOS_PER_PERSON : MAX_PHOTOS_PER_PERSON,
+    maxVideoSizeMb: MAX_VIDEO_SIZE_MB,
+    maxTotalPhotos: MAX_TOTAL_PHOTOS,
+    maxTotalVideos: MAX_TOTAL_VIDEOS,
+    photoCount: photos,
+    videoCount: videos,
     message: req.query.message || '',
     error: req.query.error || ''
   });
+}
+
+app.get('/admin/photos', requireAdmin, (req, res) => {
+  renderAdminMedia(req, res, 'photos');
+});
+
+app.get('/admin/videos', requireAdmin, (req, res) => {
+  renderAdminMedia(req, res, 'videos');
 });
 
 app.get('/admin/photo/:id', requireAdmin, (req, res) => {
@@ -343,7 +499,7 @@ app.post('/admin/photo/:id/delete', requireAdmin, (req, res) => {
 
   db.prepare('DELETE FROM photos WHERE id = ?').run(id);
   safeUnlink(path.join(uploadDir, photo.filename));
-  db.prepare('DELETE FROM uploaders WHERE id NOT IN (SELECT DISTINCT uploader_id FROM photos)').run();
+  cleanupOrphanUploaders();
 
   return res.redirect('/admin/photos?message=' + encodeURIComponent('Photo deleted.'));
 });
@@ -355,7 +511,7 @@ app.post('/admin/photos/delete-all', requireAdmin, (_req, res) => {
   }
 
   db.prepare('DELETE FROM photos').run();
-  db.prepare('DELETE FROM uploaders').run();
+  cleanupOrphanUploaders();
 
   return res.redirect('/admin/photos?message=' + encodeURIComponent('All photos deleted.'));
 });
@@ -414,19 +570,135 @@ app.get('/admin/photos/download', requireAdmin, async (_req, res) => {
   }
 });
 
+app.get('/admin/video/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).send('Invalid video ID');
+  }
+
+  const video = db
+    .prepare('SELECT filename, original_name, mime_type FROM videos WHERE id = ?')
+    .get(id);
+
+  if (!video) {
+    return res.status(404).send('Video not found');
+  }
+
+  const filePath = path.join(uploadDir, video.filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('File missing on server');
+  }
+
+  res.setHeader('Content-Type', video.mime_type);
+  res.setHeader('Content-Disposition', `inline; filename="${video.original_name.replace(/"/g, '')}"`);
+  return res.sendFile(filePath);
+});
+
+app.post('/admin/video/:id/delete', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.redirect('/admin/videos?error=' + encodeURIComponent('Invalid video ID.'));
+  }
+
+  const video = db.prepare('SELECT id, filename FROM videos WHERE id = ?').get(id);
+  if (!video) {
+    return res.redirect('/admin/videos?error=' + encodeURIComponent('Video not found.'));
+  }
+
+  db.prepare('DELETE FROM videos WHERE id = ?').run(id);
+  safeUnlink(path.join(uploadDir, video.filename));
+  cleanupOrphanUploaders();
+
+  return res.redirect('/admin/videos?message=' + encodeURIComponent('Video deleted.'));
+});
+
+app.post('/admin/videos/delete-all', requireAdmin, (_req, res) => {
+  const videos = db.prepare('SELECT filename FROM videos').all();
+  for (const video of videos) {
+    safeUnlink(path.join(uploadDir, video.filename));
+  }
+
+  db.prepare('DELETE FROM videos').run();
+  cleanupOrphanUploaders();
+
+  return res.redirect('/admin/videos?message=' + encodeURIComponent('All videos deleted.'));
+});
+
+app.get('/admin/videos/download', requireAdmin, async (_req, res) => {
+  const videos = db
+    .prepare(
+      `
+      SELECT id, filename, original_name
+      FROM videos
+      ORDER BY uploaded_at DESC, id DESC
+    `
+    )
+    .all();
+
+  if (videos.length === 0) {
+    return res.redirect('/admin/videos?error=' + encodeURIComponent('No videos to download.'));
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wedding-videos-'));
+  const archivePath = path.join(os.tmpdir(), `wedding-videos-${Date.now()}.zip`);
+
+  try {
+    let copiedCount = 0;
+    for (const video of videos) {
+      const sourcePath = path.join(uploadDir, video.filename);
+      if (!fs.existsSync(sourcePath)) {
+        continue;
+      }
+
+      const fallbackName = `video-${video.id}${path.extname(video.filename) || ''}`;
+      const stagedName = `${String(video.id).padStart(4, '0')}-${sanitizeArchiveFilename(video.original_name || fallbackName)}`;
+      fs.copyFileSync(sourcePath, path.join(tempDir, stagedName));
+      copiedCount += 1;
+    }
+
+    if (copiedCount === 0) {
+      safeRemoveDir(tempDir);
+      safeUnlink(archivePath);
+      return res.redirect('/admin/videos?error=' + encodeURIComponent('Video files are missing on disk.'));
+    }
+
+    await execFileAsync('zip', ['-q', '-r', archivePath, '.'], { cwd: tempDir });
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    return res.download(archivePath, `dan-abi-wedding-videos-${stamp}.zip`, () => {
+      safeUnlink(archivePath);
+      safeRemoveDir(tempDir);
+    });
+  } catch (_error) {
+    safeUnlink(archivePath);
+    safeRemoveDir(tempDir);
+    return res.redirect(
+      '/admin/videos?error=' + encodeURIComponent('Could not create ZIP archive on this server.')
+    );
+  }
+});
+
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError) {
+    const uploadTab = uploadTabFromRequest(_req);
     let message = 'Upload error.';
     if (err.code === 'LIMIT_FILE_SIZE') {
-      message = 'A file is too large. Max size is 20MB per photo.';
+      message =
+        uploadTab === 'videos'
+          ? `A video file is too large. Max size is ${MAX_VIDEO_SIZE_MB}MB per video.`
+          : 'A file is too large. Max size is 20MB per photo.';
     } else if (err.code === 'LIMIT_FILE_COUNT') {
-      message = `You can upload up to ${MAX_PHOTOS_PER_PERSON} photos at a time.`;
+      message =
+        uploadTab === 'videos'
+          ? `You can upload up to ${MAX_VIDEOS_PER_PERSON} videos at a time.`
+          : `You can upload up to ${MAX_PHOTOS_PER_PERSON} photos at a time.`;
     }
-    return res.redirect('/?error=' + encodeURIComponent(message));
+    return res.redirect(`/?tab=${uploadTab}&error=` + encodeURIComponent(message));
   }
 
   if (err) {
-    return res.redirect('/?error=' + encodeURIComponent(err.message || 'Unexpected error occurred.'));
+    const uploadTab = uploadTabFromRequest(_req);
+    return res.redirect(`/?tab=${uploadTab}&error=` + encodeURIComponent(err.message || 'Unexpected error occurred.'));
   }
 
   return res.status(500).send('Unexpected server error');

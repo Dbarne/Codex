@@ -130,6 +130,48 @@ h2 {
   gap: 0.65rem;
 }
 
+.upload-tabs {
+  display: inline-flex;
+  gap: 0.35rem;
+  background: rgba(255, 240, 247, 0.78);
+  padding: 0.28rem;
+  border-radius: 999px;
+  border: 1px solid rgba(240, 201, 216, 0.9);
+  margin: 0 0 0.85rem;
+}
+
+button.upload-tab-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  background: transparent;
+  color: #8a4662;
+  cursor: pointer;
+  filter: none;
+  transition: background 120ms ease;
+}
+
+button.upload-tab-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #cf4d80);
+}
+
+button.upload-tab-btn:hover {
+  background: rgba(217, 95, 141, 0.16);
+}
+
+button.upload-tab-btn.active:hover {
+  background: linear-gradient(135deg, var(--accent-strong), #ac2f5f);
+}
+
+.upload-panel {
+  display: none;
+}
+
+.upload-panel.active {
+  display: block;
+}
+
 input,
 button {
   font: inherit;
@@ -254,6 +296,29 @@ button.danger:hover {
   min-width: 0;
 }
 
+.admin-tabs {
+  display: inline-flex;
+  gap: 0.35rem;
+  background: rgba(255, 240, 247, 0.76);
+  padding: 0.28rem;
+  border-radius: 999px;
+  border: 1px solid rgba(240, 201, 216, 0.85);
+  margin: 0 0 0.85rem;
+}
+
+.admin-tab-link {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  text-decoration: none;
+  color: #8a4662;
+}
+
+.admin-tab-link.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #cf4d80);
+}
+
 .admin-actions {
   display: flex;
   gap: 0.6rem;
@@ -276,6 +341,14 @@ button.danger:hover {
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid var(--line);
+}
+
+.video-preview {
+  width: 100%;
+  height: 250px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #2a1f25;
 }
 
 .photo-meta {
@@ -392,6 +465,18 @@ button.danger:hover {
     margin-bottom: 0.45rem;
   }
 
+  .upload-tabs,
+  .admin-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .upload-tab-btn,
+  .admin-tab-link {
+    flex: 1;
+    text-align: center;
+  }
+
   .admin-actions {
     width: 100%;
     flex-direction: column;
@@ -441,6 +526,10 @@ button.danger:hover {
   }
 
   .photo-card img {
+    height: 200px;
+  }
+
+  .video-preview {
     height: 200px;
   }
 

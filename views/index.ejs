@@ -11,12 +11,12 @@
       <section class="card hero">
         <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
         <p class="wedding-subtitle">Share your favourite moments with us</p>
-        <h1>Share Your Wedding Photos</h1>
-        <p>Upload up to <strong><%= maxPerPerson %></strong> photos per person.</p>
-        <p>Gallery capacity: <strong><%= totalCount %> / <%= maxTotal %></strong></p>
+        <h1>Share Your Wedding Photos and Videos</h1>
+        <p>Photo gallery: <strong><%= totalPhotoCount %> / <%= maxTotalPhotos %></strong></p>
+        <p>Video gallery: <strong><%= totalVideoCount %> / <%= maxTotalVideos %></strong></p>
       </section>
 
-      <section class="card upload-section">
+      <section class="card upload-section" data-active-tab="<%= activeTab %>">
         <h2>Upload</h2>
 
         <% if (message) { %>
@@ -27,27 +27,60 @@
           <p class="alert error"><%= error %></p>
         <% } %>
 
-        <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
-          <label for="name">Your name</label>
-          <input id="name" name="name" type="text" maxlength="120" required />
+        <div class="upload-tabs" role="tablist" aria-label="Upload type">
+          <button type="button" class="upload-tab-btn" data-tab-btn="photos" role="tab">Photos</button>
+          <button type="button" class="upload-tab-btn" data-tab-btn="videos" role="tab">Videos</button>
+        </div>
 
-          <label for="photos">Your photos (up to <%= maxPerPerson %>)</label>
-          <input
-            id="photos"
-            name="photos"
-            type="file"
-            accept="image/*"
-            multiple
-            required
-            class="file-input-hidden"
-          />
-          <button type="button" id="choose-photos-btn" class="secondary">Choose Photos</button>
-          <p id="photo-selection-status" class="small-note">No photos selected yet.</p>
+        <section class="upload-panel" data-upload-panel="photos" role="tabpanel">
+          <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+            <label for="name-photos">Your name</label>
+            <input id="name-photos" name="name" type="text" maxlength="120" required />
 
-          <button type="submit" id="upload-submit-btn" disabled>Upload Photos</button>
-        </form>
+            <label for="photos">Your photos (up to <%= maxPhotoPerPerson %>)</label>
+            <input
+              id="photos"
+              name="photos"
+              type="file"
+              accept="image/*"
+              multiple
+              required
+              class="file-input-hidden"
+            />
+            <button type="button" id="choose-photos-btn" class="secondary">Choose Photos</button>
+            <p id="photo-selection-status" class="small-note">No photos selected yet.</p>
 
-        <p class="small-note">Only image files are accepted (max 20MB each).</p>
+            <button type="submit" id="upload-photos-submit-btn" disabled>Upload Photos</button>
+          </form>
+
+          <p class="small-note">Only image files are accepted (max 20MB each).</p>
+        </section>
+
+        <section class="upload-panel" data-upload-panel="videos" role="tabpanel">
+          <form action="/upload/videos" method="POST" enctype="multipart/form-data" class="upload-form">
+            <label for="name-videos">Your name</label>
+            <input id="name-videos" name="name" type="text" maxlength="120" required />
+
+            <label for="videos">Your videos (up to <%= maxVideoPerPerson %>)</label>
+            <input
+              id="videos"
+              name="videos"
+              type="file"
+              accept="video/*"
+              multiple
+              required
+              class="file-input-hidden"
+            />
+            <button type="button" id="choose-videos-btn" class="secondary">Choose Videos</button>
+            <p id="video-selection-status" class="small-note">No videos selected yet.</p>
+
+            <button type="submit" id="upload-videos-submit-btn" disabled>Upload Videos</button>
+          </form>
+
+          <p class="small-note">
+            Video uploads are accepted up to <%= maxVideoSizeMb %>MB per file for better quality clips.
+          </p>
+        </section>
       </section>
 
       <section class="card qr-section">
@@ -63,33 +96,84 @@
     </main>
     <script>
       (function () {
-        const fileInput = document.getElementById('photos');
-        const chooseButton = document.getElementById('choose-photos-btn');
-        const submitButton = document.getElementById('upload-submit-btn');
-        const status = document.getElementById('photo-selection-status');
-
-        if (!fileInput || !chooseButton || !submitButton || !status) {
+        const uploadSection = document.querySelector('.upload-section');
+        if (!uploadSection) {
           return;
         }
 
-        function updateSelectionState() {
-          const count = fileInput.files ? fileInput.files.length : 0;
-          if (count === 0) {
-            status.textContent = 'No photos selected yet.';
-            submitButton.disabled = true;
+        const buttons = Array.from(document.querySelectorAll('[data-tab-btn]'));
+        const panels = Array.from(document.querySelectorAll('[data-upload-panel]'));
+        const initialTab = uploadSection.getAttribute('data-active-tab') === 'videos' ? 'videos' : 'photos';
+
+        function setActiveTab(tabName) {
+          buttons.forEach((button) => {
+            const isActive = button.getAttribute('data-tab-btn') === tabName;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+
+          panels.forEach((panel) => {
+            const isActive = panel.getAttribute('data-upload-panel') === tabName;
+            panel.classList.toggle('active', isActive);
+            panel.hidden = !isActive;
+          });
+        }
+
+        buttons.forEach((button) => {
+          button.addEventListener('click', function () {
+            setActiveTab(button.getAttribute('data-tab-btn'));
+          });
+        });
+
+        function bindFilePicker(config) {
+          const fileInput = document.getElementById(config.inputId);
+          const chooseButton = document.getElementById(config.chooseButtonId);
+          const submitButton = document.getElementById(config.submitButtonId);
+          const status = document.getElementById(config.statusId);
+
+          if (!fileInput || !chooseButton || !submitButton || !status) {
             return;
           }
 
-          status.textContent = `${count} photo${count === 1 ? '' : 's'} selected.`;
-          submitButton.disabled = false;
+          function updateSelectionState() {
+            const count = fileInput.files ? fileInput.files.length : 0;
+            if (count === 0) {
+              status.textContent = config.emptyLabel;
+              submitButton.disabled = true;
+              return;
+            }
+
+            status.textContent = `${count} ${config.itemLabel}${count === 1 ? '' : 's'} selected.`;
+            submitButton.disabled = false;
+          }
+
+          chooseButton.addEventListener('click', function () {
+            fileInput.click();
+          });
+
+          fileInput.addEventListener('change', updateSelectionState);
+          updateSelectionState();
         }
 
-        chooseButton.addEventListener('click', function () {
-          fileInput.click();
+        bindFilePicker({
+          inputId: 'photos',
+          chooseButtonId: 'choose-photos-btn',
+          submitButtonId: 'upload-photos-submit-btn',
+          statusId: 'photo-selection-status',
+          emptyLabel: 'No photos selected yet.',
+          itemLabel: 'photo'
         });
 
-        fileInput.addEventListener('change', updateSelectionState);
-        updateSelectionState();
+        bindFilePicker({
+          inputId: 'videos',
+          chooseButtonId: 'choose-videos-btn',
+          submitButtonId: 'upload-videos-submit-btn',
+          statusId: 'video-selection-status',
+          emptyLabel: 'No videos selected yet.',
+          itemLabel: 'video'
+        });
+
+        setActiveTab(initialTab);
       })();
     </script>
   </body>

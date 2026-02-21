@@ -4,7 +4,8 @@ A simple website for wedding guests to upload photos with these rules:
 
 - Each guest enters their name and can upload up to **10 photos total**.
 - The whole gallery accepts up to **600 photos total**.
-- You and your partner can log in as admins to view all photos and who uploaded each one.
+- Guests can also upload videos (default: up to **10 videos per person**, **400 total**, **1200MB max per video**).
+- You and your partner can log in as admins to view all uploaded photos/videos and who uploaded each file.
 - A QR code is shown on the homepage so guests can scan and upload quickly.
 
 ## Setup
@@ -21,6 +22,7 @@ A simple website for wedding guests to upload photos with these rules:
    - Set `ADMIN_USERNAME` and `ADMIN_PASSWORD`
    - Set a strong `SESSION_SECRET`
    - Set `BASE_URL` to your public domain/tunnel URL (recommended)
+   - Optional video limits: `MAX_VIDEOS_PER_PERSON`, `MAX_TOTAL_VIDEOS`, `MAX_VIDEO_SIZE_MB`
 
 ## Run locally
 
