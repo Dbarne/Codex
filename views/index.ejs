@@ -72,10 +72,12 @@
               class="file-input-hidden"
             />
             <button type="button" id="choose-videos-btn" class="secondary">Choose Videos</button>
-            <p id="video-selection-status" class="small-note">No videos selected yet.</p>
+          <p id="video-selection-status" class="small-note">No videos selected yet.</p>
+          <p id="video-size-warning" class="alert error" hidden></p>
 
-            <button type="submit" id="upload-videos-submit-btn" disabled>Upload Videos</button>
-          </form>
+          <button type="submit" id="upload-videos-submit-btn" disabled>Upload Videos</button>
+          <button type="button" id="cancel-video-upload-btn" class="secondary" hidden>Cancel Upload</button>
+        </form>
 
           <div id="video-upload-progress" class="upload-progress" hidden>
             <div id="video-upload-progress-bar" class="upload-progress-bar"></div>
@@ -213,6 +215,8 @@
         const videoProgress = document.getElementById('video-upload-progress');
         const videoProgressBar = document.getElementById('video-upload-progress-bar');
         const videoStatus = document.getElementById('video-upload-status');
+        const cancelVideoUploadBtn = document.getElementById('cancel-video-upload-btn');
+        const videoSizeWarning = document.getElementById('video-size-warning');
 
         if (
           videoForm &&
@@ -222,28 +226,92 @@
           videoNameInput &&
           videoProgress &&
           videoProgressBar &&
-          videoStatus
+          videoStatus &&
+          cancelVideoUploadBtn &&
+          videoSizeWarning
         ) {
+          let activeVideoUploadXhr = null;
+
+          function formatBytes(bytes) {
+            const gb = 1024 * 1024 * 1024;
+            const mb = 1024 * 1024;
+            if (bytes >= gb) {
+              return `${(bytes / gb).toFixed(2)} GB`;
+            }
+            return `${(bytes / mb).toFixed(1)} MB`;
+          }
+
+          function updateVideoSizeWarning() {
+            const files = Array.from(videoInput.files || []);
+            if (files.length === 0) {
+              videoSizeWarning.hidden = true;
+              videoSizeWarning.textContent = '';
+              return;
+            }
+
+            const totalBytes = files.reduce(function (sum, file) {
+              return sum + (file.size || 0);
+            }, 0);
+
+            const totalMb = totalBytes / (1024 * 1024);
+            if (totalMb >= 350) {
+              videoSizeWarning.hidden = false;
+              videoSizeWarning.textContent = `You selected ${formatBytes(totalBytes)} of videos. Upload may take several minutes, especially on mobile data.`;
+              return;
+            }
+
+            videoSizeWarning.hidden = true;
+            videoSizeWarning.textContent = '';
+          }
+
+          function setUploadingUiState(isUploading, statusText) {
+            if (statusText) {
+              videoStatus.hidden = false;
+              videoStatus.textContent = statusText;
+            } else if (!isUploading) {
+              videoStatus.hidden = true;
+            }
+
+            videoSubmitBtn.disabled = isUploading || !videoInput.files || videoInput.files.length === 0;
+            videoChooseBtn.disabled = isUploading;
+            videoNameInput.readOnly = isUploading;
+            cancelVideoUploadBtn.hidden = !isUploading;
+
+            if (!isUploading) {
+              activeVideoUploadXhr = null;
+              if (!videoInput.files || videoInput.files.length === 0) {
+                videoProgress.hidden = true;
+              }
+              updateVideoSizeWarning();
+            }
+          }
+
+          cancelVideoUploadBtn.addEventListener('click', function () {
+            if (activeVideoUploadXhr) {
+              activeVideoUploadXhr.abort();
+            } else {
+              setUploadingUiState(false, 'Upload cancelled.');
+            }
+          });
+
           videoForm.addEventListener('submit', function (event) {
             event.preventDefault();
 
             if (!videoInput.files || videoInput.files.length === 0) {
-              videoStatus.hidden = false;
-              videoStatus.textContent = 'Choose at least one video first.';
+              setUploadingUiState(false, 'Choose at least one video first.');
               return;
             }
 
             const formData = new FormData(videoForm);
             videoProgress.hidden = false;
-            videoStatus.hidden = false;
-            videoStatus.textContent = 'Uploading videos...';
             videoProgressBar.style.width = '0%';
-            videoSubmitBtn.disabled = true;
-            videoChooseBtn.disabled = true;
-            videoNameInput.readOnly = true;
+            videoSizeWarning.hidden = true;
+            setUploadingUiState(true, 'Uploading videos...');
 
             const xhr = new XMLHttpRequest();
+            activeVideoUploadXhr = xhr;
             xhr.open('POST', '/upload/videos?ajax=1');
+            xhr.timeout = 1000 * 60 * 20;
 
             xhr.upload.onprogress = function (e) {
               if (!e.lengthComputable) {
@@ -267,19 +335,27 @@
                 return;
               }
 
-              videoStatus.textContent = 'Upload finished. Refreshing...';
+              setUploadingUiState(false, 'Upload finished. Refreshing...');
               window.location.reload();
             };
 
             xhr.onerror = function () {
-              videoStatus.textContent = 'Upload failed. Please try again.';
-              videoSubmitBtn.disabled = false;
-              videoChooseBtn.disabled = false;
-              videoNameInput.readOnly = false;
+              setUploadingUiState(false, 'Upload failed. Please try again.');
+            };
+
+            xhr.onabort = function () {
+              setUploadingUiState(false, 'Upload cancelled.');
+            };
+
+            xhr.ontimeout = function () {
+              setUploadingUiState(false, 'Upload timed out. Please try fewer or smaller videos.');
             };
 
             xhr.send(formData);
           });
+
+          videoInput.addEventListener('change', updateVideoSizeWarning);
+          updateVideoSizeWarning();
         }
 
         setActiveTab(initialTab);
