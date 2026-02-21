@@ -1,5 +1,8 @@
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
@@ -13,6 +16,7 @@ const MAX_TOTAL_PHOTOS = 600;
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const configuredBaseUrl = (process.env.BASE_URL || '').trim().replace(/\/+$/, '');
+const execFileAsync = promisify(execFile);
 
 const dataDir = path.join(__dirname, 'data');
 const uploadDir = path.join(__dirname, 'uploads');
@@ -134,6 +138,21 @@ function safeUnlink(filePath) {
   }
 }
 
+function safeRemoveDir(dirPath) {
+  try {
+    fs.rmSync(dirPath, { recursive: true, force: true });
+  } catch (_e) {
+    // Ignore cleanup failures.
+  }
+}
+
+function sanitizeArchiveFilename(name) {
+  return String(name)
+    .replace(/[/\\?%*:|"<>]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function resolveBaseUrl(req) {
   if (configuredBaseUrl) {
     return configuredBaseUrl;
@@ -225,6 +244,10 @@ app.post('/upload', upload.array('photos', MAX_PHOTOS_PER_PERSON), (req, res) =>
 });
 
 app.get('/admin/login', (req, res) => {
+  if (isAdmin(req)) {
+    return res.redirect('/admin/photos');
+  }
+
   res.render('admin-login', {
     error: req.query.error || ''
   });
@@ -331,6 +354,60 @@ app.post('/admin/photos/delete-all', requireAdmin, (_req, res) => {
   db.prepare('DELETE FROM uploaders').run();
 
   return res.redirect('/admin/photos?message=' + encodeURIComponent('All photos deleted.'));
+});
+
+app.get('/admin/photos/download', requireAdmin, async (_req, res) => {
+  const photos = db
+    .prepare(
+      `
+      SELECT id, filename, original_name
+      FROM photos
+      ORDER BY uploaded_at DESC, id DESC
+    `
+    )
+    .all();
+
+  if (photos.length === 0) {
+    return res.redirect('/admin/photos?error=' + encodeURIComponent('No photos to download.'));
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wedding-photos-'));
+  const archivePath = path.join(os.tmpdir(), `wedding-photos-${Date.now()}.zip`);
+
+  try {
+    let copiedCount = 0;
+    for (const photo of photos) {
+      const sourcePath = path.join(uploadDir, photo.filename);
+      if (!fs.existsSync(sourcePath)) {
+        continue;
+      }
+
+      const fallbackName = `photo-${photo.id}${path.extname(photo.filename) || ''}`;
+      const stagedName = `${String(photo.id).padStart(4, '0')}-${sanitizeArchiveFilename(photo.original_name || fallbackName)}`;
+      fs.copyFileSync(sourcePath, path.join(tempDir, stagedName));
+      copiedCount += 1;
+    }
+
+    if (copiedCount === 0) {
+      safeRemoveDir(tempDir);
+      safeUnlink(archivePath);
+      return res.redirect('/admin/photos?error=' + encodeURIComponent('Photo files are missing on disk.'));
+    }
+
+    await execFileAsync('zip', ['-q', '-r', archivePath, '.'], { cwd: tempDir });
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    return res.download(archivePath, `dan-abi-wedding-photos-${stamp}.zip`, () => {
+      safeUnlink(archivePath);
+      safeRemoveDir(tempDir);
+    });
+  } catch (_error) {
+    safeUnlink(archivePath);
+    safeRemoveDir(tempDir);
+    return res.redirect(
+      '/admin/photos?error=' + encodeURIComponent('Could not create ZIP archive on this server.')
+    );
+  }
 });
 
 app.use((err, _req, res, _next) => {

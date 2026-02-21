@@ -1,14 +1,19 @@
 :root {
-  --bg: #f8f5ef;
-  --card: #ffffff;
-  --ink: #1c1a17;
-  --accent: #3b7a57;
-  --accent-strong: #2d6044;
-  --line: #e8e1d4;
-  --error-bg: #fbe6e8;
-  --error-text: #8c1c28;
-  --success-bg: #e8f5ea;
-  --success-text: #1f6f3f;
+  --bg: #fff7fa;
+  --bg-soft: #ffeef4;
+  --card: rgba(255, 255, 255, 0.88);
+  --ink: #4b2433;
+  --ink-muted: #7d5160;
+  --accent: #d95f8d;
+  --accent-strong: #bf3f72;
+  --secondary: #8f5e79;
+  --line: #f0c9d8;
+  --focus: #c53e72;
+  --error-bg: #ffe7ee;
+  --error-text: #8f2045;
+  --success-bg: #eff9f1;
+  --success-text: #2c7a53;
+  --shadow: 0 18px 45px rgba(133, 52, 86, 0.12);
 }
 
 * {
@@ -17,9 +22,33 @@
 
 body {
   margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Avenir Next', 'Gill Sans', 'Trebuchet MS', sans-serif;
   color: var(--ink);
-  background: radial-gradient(circle at top right, #f7e8cf, var(--bg) 55%);
+  background: linear-gradient(155deg, #fffafc 0%, var(--bg-soft) 55%, var(--bg) 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  pointer-events: none;
+  z-index: -2;
+}
+
+body::before {
+  inset: 0;
+  background: url('/public/peony-scene.svg') center center / cover no-repeat;
+  opacity: 0.26;
+}
+
+body::after {
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(to bottom, rgba(255, 250, 252, 0.56) 0%, rgba(255, 246, 250, 0.5) 58%, rgba(255, 247, 251, 0.67) 100%);
 }
 
 .container {
@@ -39,16 +68,61 @@ body {
 
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border: 1px solid rgba(240, 201, 216, 0.82);
+  backdrop-filter: blur(3px);
+  border-radius: 18px;
   padding: 1.25rem;
-  box-shadow: 0 6px 22px rgba(64, 58, 46, 0.07);
+  box-shadow: var(--shadow);
 }
 
 h1,
 h2,
 p {
   margin-top: 0;
+}
+
+h1,
+h2 {
+  font-family: 'Didot', 'Bodoni MT', 'Times New Roman', serif;
+  letter-spacing: 0.02em;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+}
+
+h2 {
+  font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+}
+
+.title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.title-link:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(155, 62, 101, 0.45);
+}
+
+.hero h1 {
+  margin-bottom: 0.55rem;
+}
+
+.wedding-title {
+  margin: 0 0 0.1rem;
+  font-family: 'Snell Roundhand', 'Apple Chancery', 'Brush Script MT', cursive;
+  font-size: clamp(1.65rem, 3.4vw, 2.25rem);
+  color: #9b3e65;
+  line-height: 1.1;
+}
+
+.wedding-subtitle {
+  margin: 0 0 0.85rem;
+  font-size: 0.94rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a6070;
 }
 
 .upload-form {
@@ -66,58 +140,76 @@ input[type='password'],
 input[type='file'] {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 0.7rem;
-  background: #fffefc;
+  border-radius: 12px;
+  padding: 0.76rem;
+  background: #fffdfd;
+  color: var(--ink);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+input[type='text']:focus,
+input[type='password']:focus,
+input[type='file']:focus {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(197, 62, 114, 0.16);
 }
 
 button {
   border: 0;
-  border-radius: 10px;
-  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  padding: 0.78rem 1rem;
   color: #fff;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), #cf4d80);
   cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
 }
 
 button:hover {
-  background: var(--accent-strong);
+  background: linear-gradient(135deg, var(--accent-strong), #ac2f5f);
+  filter: saturate(1.06);
+}
+
+button:active {
+  transform: translateY(1px);
 }
 
 button.secondary {
-  background: #6f6558;
+  background: linear-gradient(135deg, var(--secondary), #7a4963);
 }
 
 button.secondary:hover {
-  background: #4f473f;
+  background: linear-gradient(135deg, #7d5169, #69384f);
 }
 
 button.danger {
-  background: #a5262c;
+  background: linear-gradient(135deg, #b83a5a, #982648);
 }
 
 button.danger:hover {
-  background: #7d1a1f;
+  background: linear-gradient(135deg, #a22d4c, #841b3b);
 }
 
 .alert {
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 0.7rem 0.9rem;
 }
 
 .alert.error {
   background: var(--error-bg);
   color: var(--error-text);
+  border: 1px solid #f3b6cb;
 }
 
 .alert.success {
   background: var(--success-bg);
   color: var(--success-text);
+  border: 1px solid #c9e8d2;
 }
 
 .small-note {
   font-size: 0.9rem;
-  color: #514941;
+  color: var(--ink-muted);
 }
 
 .qr-section {
@@ -126,14 +218,15 @@ button.danger:hover {
 
 .qr-image {
   width: min(320px, 75vw);
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--line);
+  box-shadow: 0 10px 24px rgba(133, 52, 86, 0.13);
 }
 
 .url {
   font-size: 0.95rem;
   word-break: break-all;
-  color: #4d473f;
+  color: #76495e;
 }
 
 .header-row {
@@ -155,11 +248,15 @@ button.danger:hover {
   gap: 1rem;
 }
 
+.photo-card {
+  animation: bloom-in 350ms ease-out both;
+}
+
 .photo-card img {
   width: 100%;
   height: 250px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--line);
 }
 
@@ -168,18 +265,49 @@ button.danger:hover {
   font-size: 0.9rem;
 }
 
-.admin-link a {
-  color: var(--accent);
+.admin-link a,
+.small-note a {
+  color: var(--accent-strong);
   text-decoration: none;
 }
 
-.admin-link a:hover {
+.admin-link a:hover,
+.small-note a:hover {
   text-decoration: underline;
+}
+
+@keyframes bloom-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 720px) {
   .header-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-actions form {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .admin-actions button {
+    width: 100%;
+  }
+
+  .card {
+    padding: 1rem;
   }
 }

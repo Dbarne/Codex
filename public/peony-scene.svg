@@ -1,0 +1,120 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8E2DD"/>
+      <stop offset="1" stop-color="#EFE9E4"/>
+    </linearGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9D8672"/>
+      <stop offset="1" stop-color="#7F6854"/>
+    </linearGradient>
+    <linearGradient id="vase" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9F978E"/>
+      <stop offset="1" stop-color="#7E746A"/>
+    </linearGradient>
+    <radialGradient id="peonyLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 0) rotate(90) scale(95 95)">
+      <stop offset="0" stop-color="#FFF8FA"/>
+      <stop offset="0.62" stop-color="#FDDDE8"/>
+      <stop offset="1" stop-color="#EFA9C1"/>
+    </radialGradient>
+    <radialGradient id="peonyCenter" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 0) rotate(90) scale(52 52)">
+      <stop offset="0" stop-color="#FFDCE8"/>
+      <stop offset="1" stop-color="#E88CAD"/>
+    </radialGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#355936"/>
+      <stop offset="1" stop-color="#1F3E25"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="170%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="10"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.08"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="drop" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#6B4B4D" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#wall)"/>
+  <rect width="1600" height="1000" filter="url(#grain)" opacity="0.35"/>
+  <rect y="655" width="1600" height="345" fill="url(#table)"/>
+  <path d="M0 668C286 639 649 707 1024 664C1309 630 1512 643 1600 662V1000H0V668Z" fill="#8E7662" opacity="0.42"/>
+
+  <g opacity="0.2">
+    <path d="M210 220C250 200 286 204 321 226" stroke="#C99A6A" stroke-width="8" stroke-linecap="round"/>
+    <path d="M1320 188C1360 168 1404 170 1452 194" stroke="#CFAB7B" stroke-width="8" stroke-linecap="round"/>
+    <path d="M1080 316C1108 300 1146 300 1178 320" stroke="#D1AE7A" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(815 545)" filter="url(#drop)">
+    <ellipse cx="0" cy="225" rx="300" ry="38" fill="#5D4A3E" opacity="0.36"/>
+    <path d="M-120 -140C-120 -208 -68 -252 0 -252C69 -252 122 -208 122 -140V70C122 140 66 198 0 198C-65 198 -120 140 -120 70V-140Z" fill="url(#vase)"/>
+    <path d="M-98 -162C-98 -202 -56 -230 0 -230C56 -230 98 -202 98 -162V-124C98 -89 58 -60 0 -60C-58 -60 -98 -89 -98 -124V-162Z" fill="#8F847A"/>
+    <path d="M-82 -146C-82 -173 -47 -192 0 -192C48 -192 82 -173 82 -146" stroke="#B1A79C" stroke-width="6" stroke-linecap="round" opacity="0.65"/>
+    <path d="M-82 -40C-45 -22 45 -22 82 -40" stroke="#A59A8F" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+    <path d="M-90 -172C-52 -178 52 -178 90 -172" stroke="#6D635B" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+    <path d="M-140 -160C-84 -148 84 -148 140 -160" stroke="#7A6551" stroke-width="12" stroke-linecap="round" opacity="0.9"/>
+    <path d="M-136 -154C-112 -126 -96 -98 -98 -66" stroke="#97765C" stroke-width="7" stroke-linecap="round"/>
+    <path d="M136 -154C112 -126 96 -98 98 -66" stroke="#97765C" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(818 548)">
+    <path d="M-210 100C-168 36 -102 -4 -28 -16" stroke="#2F5031" stroke-width="10" stroke-linecap="round"/>
+    <path d="M-30 -12C35 -27 104 -11 167 34" stroke="#2F5031" stroke-width="10" stroke-linecap="round"/>
+    <path d="M-162 145C-112 87 -65 59 -8 40" stroke="#335838" stroke-width="9" stroke-linecap="round"/>
+    <ellipse cx="-208" cy="108" rx="64" ry="30" transform="rotate(-28 -208 108)" fill="url(#leaf)"/>
+    <ellipse cx="-121" cy="73" rx="68" ry="28" transform="rotate(-18 -121 73)" fill="url(#leaf)"/>
+    <ellipse cx="151" cy="48" rx="74" ry="32" transform="rotate(20 151 48)" fill="url(#leaf)"/>
+    <ellipse cx="59" cy="16" rx="70" ry="30" transform="rotate(8 59 16)" fill="url(#leaf)"/>
+    <ellipse cx="-18" cy="42" rx="76" ry="31" transform="rotate(-7 -18 42)" fill="url(#leaf)"/>
+  </g>
+
+  <g transform="translate(816 520)">
+    <g transform="translate(-220 120)">
+      <ellipse rx="86" ry="42" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(30)" rx="72" ry="36" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(-33)" rx="72" ry="36" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(75)" rx="52" ry="30" fill="url(#peonyCenter)"/>
+      <ellipse transform="rotate(-74)" rx="52" ry="30" fill="url(#peonyCenter)"/>
+      <ellipse rx="28" ry="22" fill="#E57A9E"/>
+      <ellipse rx="15" ry="12" fill="#D7638B"/>
+    </g>
+
+    <g transform="translate(-58 62)">
+      <ellipse rx="98" ry="48" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(24)" rx="83" ry="39" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(-28)" rx="83" ry="39" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(62)" rx="64" ry="34" fill="url(#peonyCenter)"/>
+      <ellipse transform="rotate(-64)" rx="64" ry="34" fill="url(#peonyCenter)"/>
+      <ellipse rx="35" ry="26" fill="#EA86A8"/>
+      <ellipse rx="20" ry="14" fill="#DA6A90"/>
+    </g>
+
+    <g transform="translate(130 76)">
+      <ellipse rx="92" ry="44" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(28)" rx="80" ry="39" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(-26)" rx="80" ry="39" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(70)" rx="58" ry="33" fill="url(#peonyCenter)"/>
+      <ellipse transform="rotate(-70)" rx="58" ry="33" fill="url(#peonyCenter)"/>
+      <ellipse rx="34" ry="25" fill="#E980A5"/>
+      <ellipse rx="17" ry="13" fill="#D7648B"/>
+    </g>
+
+    <g transform="translate(250 148)">
+      <ellipse rx="84" ry="40" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(30)" rx="68" ry="33" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(-30)" rx="68" ry="33" fill="url(#peonyLight)"/>
+      <ellipse transform="rotate(72)" rx="52" ry="28" fill="url(#peonyCenter)"/>
+      <ellipse transform="rotate(-72)" rx="52" ry="28" fill="url(#peonyCenter)"/>
+      <ellipse rx="30" ry="22" fill="#E57E9F"/>
+      <ellipse rx="14" ry="10" fill="#D6658A"/>
+    </g>
+  </g>
+
+  <ellipse cx="808" cy="735" rx="345" ry="46" fill="#4D3D34" opacity="0.14" filter="url(#soft)"/>
+</svg>

@@ -10,11 +10,16 @@
     <main class="container wide">
       <section class="card header-row">
         <div>
-          <h1>Wedding Photo Gallery</h1>
+          <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
+          <p class="wedding-subtitle">Photo collection admin</p>
+          <h1><a href="/" class="title-link">Wedding Photo Gallery</a></h1>
           <p><strong><%= totalCount %></strong> / <strong><%= maxTotal %></strong> total photos</p>
           <p>Per uploader cap: <strong><%= maxPerPerson %></strong> photos</p>
         </div>
         <div class="admin-actions">
+          <form action="/admin/photos/download" method="GET">
+            <button type="submit">Download All Photos</button>
+          </form>
           <form action="/admin/photos/delete-all" method="POST" onsubmit="return confirm('Delete ALL photos permanently?');">
             <button type="submit" class="danger">Delete All Photos</button>
           </form>
