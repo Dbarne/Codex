@@ -175,6 +175,18 @@ h2 {
   font-size: 0.92rem;
 }
 
+.upload-steps {
+  margin: 0 0 0.9rem;
+  padding: 0.78rem 0.85rem 0.78rem 1.2rem;
+  border-radius: 12px;
+  border: 1px solid rgba(240, 201, 216, 0.8);
+  background: rgba(255, 248, 252, 0.8);
+  display: grid;
+  gap: 0.35rem;
+  color: #7d5160;
+  font-size: 0.92rem;
+}
+
 .upload-form {
   display: grid;
   gap: 0.65rem;
@@ -185,29 +197,30 @@ h2 {
 }
 
 .upload-tabs {
-  display: inline-flex;
-  gap: 0.35rem;
-  background: rgba(255, 240, 247, 0.78);
-  padding: 0.28rem;
-  border-radius: 999px;
-  border: 1px solid rgba(240, 201, 216, 0.9);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
   margin: 0 0 0.85rem;
 }
 
 button.upload-tab-btn {
-  border: 0;
-  border-radius: 999px;
-  padding: 0.5rem 0.95rem;
-  background: transparent;
+  border: 1px solid rgba(240, 201, 216, 0.9);
+  border-radius: 14px;
+  padding: 0.72rem 0.78rem;
+  background: rgba(255, 248, 252, 0.84);
   color: #8a4662;
   cursor: pointer;
   filter: none;
   transition: background 120ms ease, transform 120ms ease;
+  display: grid;
+  gap: 0.12rem;
+  text-align: left;
 }
 
 button.upload-tab-btn.active {
   color: #fff;
   background: linear-gradient(135deg, var(--accent), #cf4d80);
+  border-color: rgba(191, 63, 114, 0.75);
 }
 
 button.upload-tab-btn:hover {
@@ -217,6 +230,16 @@ button.upload-tab-btn:hover {
 
 button.upload-tab-btn.active:hover {
   background: linear-gradient(135deg, var(--accent-strong), #ac2f5f);
+}
+
+.tab-title {
+  font-size: 0.97rem;
+  font-weight: 600;
+}
+
+.tab-subtitle {
+  font-size: 0.76rem;
+  opacity: 0.9;
 }
 
 .upload-panel {
@@ -241,6 +264,12 @@ button.upload-tab-btn.active:hover {
   height: 100%;
   background: linear-gradient(135deg, #d95f8d, #bf3f72);
   transition: width 120ms linear;
+}
+
+.field-validation {
+  margin: -0.15rem 0 0.15rem;
+  font-size: 0.84rem;
+  color: #9a2e56;
 }
 
 input,
@@ -529,6 +558,41 @@ button.danger:hover {
   margin: 0;
 }
 
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(49, 24, 35, 0.5);
+  padding: 1rem;
+  z-index: 40;
+}
+
+.confirm-modal-card {
+  width: min(460px, 94vw);
+  border-radius: 16px;
+  border: 1px solid rgba(240, 201, 216, 0.85);
+  background: var(--card-strong);
+  box-shadow: 0 20px 40px rgba(38, 14, 24, 0.3);
+  padding: 1rem;
+}
+
+.confirm-modal-card h3 {
+  margin: 0 0 0.45rem;
+  font-family: 'Didot', 'Bodoni MT', 'Times New Roman', serif;
+}
+
+.confirm-modal-card p {
+  margin: 0 0 0.8rem;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 @keyframes bloom-in {
   from {
     opacity: 0;
@@ -641,7 +705,7 @@ button.danger:hover {
 
   .upload-tabs,
   .admin-tabs {
-    display: flex;
+    display: grid;
     width: 100%;
   }
 

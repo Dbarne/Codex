@@ -24,6 +24,11 @@
           <h2>Upload</h2>
           <p class="section-subtitle">Choose photos or videos and upload in a few taps.</p>
         </div>
+        <ol class="upload-steps">
+          <li><strong>Step 1:</strong> Enter your name</li>
+          <li><strong>Step 2:</strong> Choose photos or videos</li>
+          <li><strong>Step 3:</strong> Keep this page open until complete</li>
+        </ol>
 
         <% if (message) { %>
           <p class="alert success"><%= message %></p>
@@ -34,14 +39,21 @@
         <% } %>
 
         <div class="upload-tabs" role="tablist" aria-label="Upload type">
-          <button type="button" class="upload-tab-btn" data-tab-btn="photos" role="tab">Photos</button>
-          <button type="button" class="upload-tab-btn" data-tab-btn="videos" role="tab">Videos</button>
+          <button type="button" class="upload-tab-btn" data-tab-btn="photos" role="tab">
+            <span class="tab-title">Photos</span>
+            <span class="tab-subtitle">Fast and simple</span>
+          </button>
+          <button type="button" class="upload-tab-btn" data-tab-btn="videos" role="tab">
+            <span class="tab-title">Videos</span>
+            <span class="tab-subtitle">Best on Wi-Fi</span>
+          </button>
         </div>
 
         <section class="upload-panel" data-upload-panel="photos" role="tabpanel">
           <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form" id="photo-upload-form">
             <label for="name-photos">Your name</label>
             <input id="name-photos" name="name" type="text" maxlength="120" required />
+            <p id="photo-name-validation" class="field-validation" hidden>Please enter your name first.</p>
 
             <label for="photos">Your photos (up to <%= maxPhotoPerPerson %>)</label>
             <input
@@ -55,6 +67,7 @@
             />
             <button type="button" id="choose-photos-btn" class="secondary">Choose Photos</button>
             <p id="photo-selection-status" class="small-note">No photos selected yet.</p>
+            <p id="photo-files-validation" class="field-validation" hidden>Please choose at least one photo.</p>
 
             <button type="submit" id="upload-photos-submit-btn" disabled>Upload Photos</button>
             <button type="button" id="cancel-photo-upload-btn" class="secondary" hidden>Cancel Upload</button>
@@ -72,6 +85,7 @@
           <form action="/upload/videos" method="POST" enctype="multipart/form-data" class="upload-form" id="video-upload-form">
             <label for="name-videos">Your name</label>
             <input id="name-videos" name="name" type="text" maxlength="120" required />
+            <p id="video-name-validation" class="field-validation" hidden>Please enter your name first.</p>
 
             <label for="videos">Your videos (up to <%= maxVideoPerPerson %>)</label>
             <input
@@ -86,6 +100,7 @@
             <button type="button" id="choose-videos-btn" class="secondary">Choose Videos</button>
             <p class="small-note">On iPhone/Android, the device&apos;s tick/done button is controlled by your phone and may pause while videos prepare.</p>
             <p id="video-selection-status" class="small-note">No videos selected yet.</p>
+            <p id="video-files-validation" class="field-validation" hidden>Please choose at least one video.</p>
             <p id="video-size-warning" class="alert error" hidden></p>
 
             <button type="submit" id="upload-videos-submit-btn" disabled>Upload Videos</button>
@@ -114,6 +129,18 @@
         <a href="/admin/login">Admin Login</a>
       </section>
     </main>
+
+    <div id="upload-confirm-modal" class="confirm-modal" hidden>
+      <div class="confirm-modal-card">
+        <h3>Large Upload Selected</h3>
+        <p id="upload-confirm-text">This upload may take several minutes. Continue?</p>
+        <div class="confirm-actions">
+          <button type="button" id="upload-confirm-continue">Continue Upload</button>
+          <button type="button" id="upload-confirm-cancel" class="secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       (function () {
         const uploadSection = document.querySelector('.upload-section');
@@ -124,6 +151,49 @@
         const buttons = Array.from(document.querySelectorAll('[data-tab-btn]'));
         const panels = Array.from(document.querySelectorAll('[data-upload-panel]'));
         const initialTab = uploadSection.getAttribute('data-active-tab') === 'videos' ? 'videos' : 'photos';
+        const confirmModal = document.getElementById('upload-confirm-modal');
+        const confirmText = document.getElementById('upload-confirm-text');
+        const confirmContinueBtn = document.getElementById('upload-confirm-continue');
+        const confirmCancelBtn = document.getElementById('upload-confirm-cancel');
+
+        function formatBytes(bytes) {
+          const gb = 1024 * 1024 * 1024;
+          const mb = 1024 * 1024;
+          if (bytes >= gb) {
+            return `${(bytes / gb).toFixed(2)} GB`;
+          }
+          return `${(bytes / mb).toFixed(1)} MB`;
+        }
+
+        function askLargeUploadConfirmation(totalBytes, kindLabel) {
+          return new Promise(function (resolve) {
+            if (!confirmModal || !confirmText || !confirmContinueBtn || !confirmCancelBtn) {
+              resolve(true);
+              return;
+            }
+
+            confirmText.textContent = `You selected ${formatBytes(totalBytes)} of ${kindLabel}. This may take several minutes. Keep this page open while it uploads.`;
+            confirmModal.hidden = false;
+
+            function cleanup(choice) {
+              confirmModal.hidden = true;
+              confirmContinueBtn.removeEventListener('click', onContinue);
+              confirmCancelBtn.removeEventListener('click', onCancel);
+              resolve(choice);
+            }
+
+            function onContinue() {
+              cleanup(true);
+            }
+
+            function onCancel() {
+              cleanup(false);
+            }
+
+            confirmContinueBtn.addEventListener('click', onContinue);
+            confirmCancelBtn.addEventListener('click', onCancel);
+          });
+        }
 
         function setActiveTab(tabName) {
           buttons.forEach((button) => {
@@ -236,6 +306,8 @@
         const photoProgressBar = document.getElementById('photo-upload-progress-bar');
         const photoStatus = document.getElementById('photo-upload-status');
         const cancelPhotoUploadBtn = document.getElementById('cancel-photo-upload-btn');
+        const photoNameValidation = document.getElementById('photo-name-validation');
+        const photoFilesValidation = document.getElementById('photo-files-validation');
 
         if (
           photoForm &&
@@ -246,7 +318,9 @@
           photoProgress &&
           photoProgressBar &&
           photoStatus &&
-          cancelPhotoUploadBtn
+          cancelPhotoUploadBtn &&
+          photoNameValidation &&
+          photoFilesValidation
         ) {
           let activePhotoUploadXhr = null;
           let photoUploadBusy = false;
@@ -292,68 +366,98 @@
           photoForm.addEventListener('submit', function (event) {
             event.preventDefault();
 
+            const nameValue = photoNameInput.value.trim();
+            photoNameValidation.hidden = nameValue.length > 0;
             if (!photoInput.files || photoInput.files.length === 0) {
+              photoFilesValidation.hidden = false;
               setPhotoUploadingUiState(false, 'Choose at least one photo first.');
               return;
             }
+            photoFilesValidation.hidden = true;
+            if (!nameValue) {
+              setPhotoUploadingUiState(false, 'Please enter your name first.');
+              return;
+            }
 
-            const formData = new FormData(photoForm);
-            photoProgress.hidden = false;
-            photoProgressBar.style.width = '0%';
-            setPhotoUploadingUiState(true, 'Uploading photos...');
-            setPhotoUploadBusyState(true);
+            const totalPhotoBytes = Array.from(photoInput.files || []).reduce(function (sum, file) {
+              return sum + (file.size || 0);
+            }, 0);
 
-            const xhr = new XMLHttpRequest();
-            activePhotoUploadXhr = xhr;
-            xhr.open('POST', '/upload?ajax=1');
-            xhr.timeout = 1000 * 60 * 10;
-
-            xhr.upload.onprogress = function (e) {
-              if (!e.lengthComputable) {
+            Promise.resolve(
+              totalPhotoBytes >= 120 * 1024 * 1024
+                ? askLargeUploadConfirmation(totalPhotoBytes, 'photos')
+                : true
+            ).then(function (shouldContinue) {
+              if (!shouldContinue) {
+                setPhotoUploadingUiState(false, 'Upload cancelled before start.');
                 return;
               }
-              const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
-              photoProgressBar.style.width = `${pct}%`;
-              if (pct >= 100) {
-                photoStatus.textContent = 'Upload sent. Finalising on server, please wait...';
-              } else {
-                photoStatus.textContent = `Uploading photos... ${pct}%`;
-              }
-            };
 
-            xhr.onload = function () {
-              let payload = null;
-              try {
-                payload = JSON.parse(xhr.responseText || '{}');
-              } catch (_e) {
-                payload = null;
-              }
+              const formData = new FormData(photoForm);
+              photoProgress.hidden = false;
+              photoProgressBar.style.width = '0%';
+              setPhotoUploadingUiState(true, 'Uploading photos...');
+              setPhotoUploadBusyState(true);
 
-              if (payload && payload.redirectUrl) {
-                setPhotoUploadBusyState(false);
+              const xhr = new XMLHttpRequest();
+              activePhotoUploadXhr = xhr;
+              xhr.open('POST', '/upload?ajax=1');
+              xhr.timeout = 1000 * 60 * 10;
+
+              xhr.upload.onprogress = function (e) {
+                if (!e.lengthComputable) {
+                  return;
+                }
+                const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
+                photoProgressBar.style.width = `${pct}%`;
+                if (pct >= 100) {
+                  photoStatus.textContent = 'Upload sent. Finalising on server, please wait...';
+                } else {
+                  photoStatus.textContent = `Uploading photos... ${pct}%`;
+                }
+              };
+
+              xhr.onload = function () {
+                let payload = null;
+                try {
+                  payload = JSON.parse(xhr.responseText || '{}');
+                } catch (_e) {
+                  payload = null;
+                }
+
+                if (payload && payload.redirectUrl) {
+                  setPhotoUploadBusyState(false);
+                  allowPhotoPageLeave = true;
+                  window.location.href = payload.redirectUrl;
+                  return;
+                }
+
+                setPhotoUploadingUiState(false, 'Upload finished. Refreshing...');
                 allowPhotoPageLeave = true;
-                window.location.href = payload.redirectUrl;
-                return;
-              }
+                window.location.reload();
+              };
 
-              setPhotoUploadingUiState(false, 'Upload finished. Refreshing...');
-              allowPhotoPageLeave = true;
-              window.location.reload();
-            };
+              xhr.onerror = function () {
+                setPhotoUploadingUiState(false, 'Upload failed. Please try again.');
+              };
 
-            xhr.onerror = function () {
-              setPhotoUploadingUiState(false, 'Upload failed. Please try again.');
-            };
+              xhr.onabort = function () {
+                setPhotoUploadingUiState(false, 'Upload cancelled.');
+              };
 
-            xhr.onabort = function () {
-              setPhotoUploadingUiState(false, 'Upload cancelled.');
-            };
+              xhr.ontimeout = function () {
+                setPhotoUploadingUiState(false, 'Upload timed out. Please try again.');
+              };
 
-            xhr.ontimeout = function () {
-              setPhotoUploadingUiState(false, 'Upload timed out. Please try again.');
-            };
+              xhr.send(formData);
+            });
+          });
 
-            xhr.send(formData);
+          photoNameInput.addEventListener('input', function () {
+            photoNameValidation.hidden = photoNameInput.value.trim().length > 0;
+          });
+          photoInput.addEventListener('change', function () {
+            photoFilesValidation.hidden = !!(photoInput.files && photoInput.files.length > 0);
           });
 
           window.addEventListener('beforeunload', function (event) {
@@ -375,6 +479,8 @@
         const videoStatus = document.getElementById('video-upload-status');
         const cancelVideoUploadBtn = document.getElementById('cancel-video-upload-btn');
         const videoSizeWarning = document.getElementById('video-size-warning');
+        const videoNameValidation = document.getElementById('video-name-validation');
+        const videoFilesValidation = document.getElementById('video-files-validation');
 
         if (
           videoForm &&
@@ -386,7 +492,9 @@
           videoProgressBar &&
           videoStatus &&
           cancelVideoUploadBtn &&
-          videoSizeWarning
+          videoSizeWarning &&
+          videoNameValidation &&
+          videoFilesValidation
         ) {
           let activeVideoUploadXhr = null;
           let videoUploadBusy = false;
@@ -465,69 +573,99 @@
           videoForm.addEventListener('submit', function (event) {
             event.preventDefault();
 
+            const nameValue = videoNameInput.value.trim();
+            videoNameValidation.hidden = nameValue.length > 0;
             if (!videoInput.files || videoInput.files.length === 0) {
+              videoFilesValidation.hidden = false;
               setUploadingUiState(false, 'Choose at least one video first.');
               return;
             }
+            videoFilesValidation.hidden = true;
+            if (!nameValue) {
+              setUploadingUiState(false, 'Please enter your name first.');
+              return;
+            }
 
-            const formData = new FormData(videoForm);
-            videoProgress.hidden = false;
-            videoProgressBar.style.width = '0%';
-            videoSizeWarning.hidden = true;
-            setUploadingUiState(true, 'Uploading videos...');
-            setVideoUploadBusyState(true);
+            const totalVideoBytes = Array.from(videoInput.files || []).reduce(function (sum, file) {
+              return sum + (file.size || 0);
+            }, 0);
 
-            const xhr = new XMLHttpRequest();
-            activeVideoUploadXhr = xhr;
-            xhr.open('POST', '/upload/videos?ajax=1');
-            xhr.timeout = 1000 * 60 * 20;
-
-            xhr.upload.onprogress = function (e) {
-              if (!e.lengthComputable) {
+            Promise.resolve(
+              totalVideoBytes >= 350 * 1024 * 1024
+                ? askLargeUploadConfirmation(totalVideoBytes, 'videos')
+                : true
+            ).then(function (shouldContinue) {
+              if (!shouldContinue) {
+                setUploadingUiState(false, 'Upload cancelled before start.');
                 return;
               }
-              const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
-              videoProgressBar.style.width = `${pct}%`;
-              if (pct >= 100) {
-                videoStatus.textContent = 'Upload sent. Finalising on server, please wait...';
-              } else {
-                videoStatus.textContent = `Uploading videos... ${pct}%`;
-              }
-            };
 
-            xhr.onload = function () {
-              let payload = null;
-              try {
-                payload = JSON.parse(xhr.responseText || '{}');
-              } catch (_e) {
-                payload = null;
-              }
+              const formData = new FormData(videoForm);
+              videoProgress.hidden = false;
+              videoProgressBar.style.width = '0%';
+              videoSizeWarning.hidden = true;
+              setUploadingUiState(true, 'Uploading videos...');
+              setVideoUploadBusyState(true);
 
-              if (payload && payload.redirectUrl) {
-                setVideoUploadBusyState(false);
+              const xhr = new XMLHttpRequest();
+              activeVideoUploadXhr = xhr;
+              xhr.open('POST', '/upload/videos?ajax=1');
+              xhr.timeout = 1000 * 60 * 20;
+
+              xhr.upload.onprogress = function (e) {
+                if (!e.lengthComputable) {
+                  return;
+                }
+                const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
+                videoProgressBar.style.width = `${pct}%`;
+                if (pct >= 100) {
+                  videoStatus.textContent = 'Upload sent. Finalising on server, please wait...';
+                } else {
+                  videoStatus.textContent = `Uploading videos... ${pct}%`;
+                }
+              };
+
+              xhr.onload = function () {
+                let payload = null;
+                try {
+                  payload = JSON.parse(xhr.responseText || '{}');
+                } catch (_e) {
+                  payload = null;
+                }
+
+                if (payload && payload.redirectUrl) {
+                  setVideoUploadBusyState(false);
+                  allowPageLeave = true;
+                  window.location.href = payload.redirectUrl;
+                  return;
+                }
+
+                setUploadingUiState(false, 'Upload finished. Refreshing...');
                 allowPageLeave = true;
-                window.location.href = payload.redirectUrl;
-                return;
-              }
+                window.location.reload();
+              };
 
-              setUploadingUiState(false, 'Upload finished. Refreshing...');
-              allowPageLeave = true;
-              window.location.reload();
-            };
+              xhr.onerror = function () {
+                setUploadingUiState(false, 'Upload failed. Please try again.');
+              };
 
-            xhr.onerror = function () {
-              setUploadingUiState(false, 'Upload failed. Please try again.');
-            };
+              xhr.onabort = function () {
+                setUploadingUiState(false, 'Upload cancelled.');
+              };
 
-            xhr.onabort = function () {
-              setUploadingUiState(false, 'Upload cancelled.');
-            };
+              xhr.ontimeout = function () {
+                setUploadingUiState(false, 'Upload timed out. Please try fewer or smaller videos.');
+              };
 
-            xhr.ontimeout = function () {
-              setUploadingUiState(false, 'Upload timed out. Please try fewer or smaller videos.');
-            };
+              xhr.send(formData);
+            });
+          });
 
-            xhr.send(formData);
+          videoNameInput.addEventListener('input', function () {
+            videoNameValidation.hidden = videoNameInput.value.trim().length > 0;
+          });
+          videoInput.addEventListener('change', function () {
+            videoFilesValidation.hidden = !!(videoInput.files && videoInput.files.length > 0);
           });
 
           videoInput.addEventListener('change', updateVideoSizeWarning);
