@@ -40,8 +40,8 @@ body::after {
 
 body::before {
   inset: 0;
-  background: url('/public/peony-scene.svg') center center / cover no-repeat;
-  opacity: 0.26;
+  background: url('/public/dan-abi.jpg') center 28% / cover no-repeat;
+  opacity: 0.3;
 }
 
 body::after {
@@ -320,8 +320,8 @@ button.danger:hover {
 
 @media (max-width: 720px) {
   body::before {
-    background-position: 62% center;
-    opacity: 0.14;
+    background-position: center 22%;
+    opacity: 0.26;
   }
 
   body::after {
