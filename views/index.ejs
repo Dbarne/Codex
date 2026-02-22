@@ -68,6 +68,7 @@
             <button type="button" id="choose-photos-btn" class="secondary">Choose Photos</button>
             <p id="photo-selection-status" class="small-note">No photos selected yet.</p>
             <p id="photo-files-validation" class="field-validation" hidden>Please choose at least one photo.</p>
+            <button type="button" id="photo-preview-toggle-btn" class="secondary" hidden>Preview Selected Photos</button>
             <div id="photo-preview-wrap" class="photo-preview-wrap" hidden>
               <p class="small-note">Selected photos</p>
               <div id="photo-preview-grid" class="photo-preview-grid"></div>
@@ -345,6 +346,7 @@
         const cancelPhotoUploadBtn = document.getElementById('cancel-photo-upload-btn');
         const photoNameValidation = document.getElementById('photo-name-validation');
         const photoFilesValidation = document.getElementById('photo-files-validation');
+        const photoPreviewToggleBtn = document.getElementById('photo-preview-toggle-btn');
         const photoPreviewWrap = document.getElementById('photo-preview-wrap');
         const photoPreviewGrid = document.getElementById('photo-preview-grid');
 
@@ -360,6 +362,7 @@
           cancelPhotoUploadBtn &&
           photoNameValidation &&
           photoFilesValidation &&
+          photoPreviewToggleBtn &&
           photoPreviewWrap &&
           photoPreviewGrid
         ) {
@@ -404,6 +407,8 @@
             photoPreviewUrls = [];
             photoPreviewGrid.innerHTML = '';
             photoPreviewWrap.hidden = true;
+            photoPreviewToggleBtn.hidden = true;
+            photoPreviewToggleBtn.textContent = 'Preview Selected Photos';
           }
 
           function refreshPhotoPreview() {
@@ -440,7 +445,15 @@
             }
 
             photoPreviewWrap.hidden = false;
+            photoPreviewToggleBtn.hidden = false;
+            photoPreviewToggleBtn.textContent = 'Hide Selected Photos';
           }
+
+          photoPreviewToggleBtn.addEventListener('click', function () {
+            const isHidden = photoPreviewWrap.hidden;
+            photoPreviewWrap.hidden = !isHidden;
+            photoPreviewToggleBtn.textContent = isHidden ? 'Hide Selected Photos' : 'Preview Selected Photos';
+          });
 
           cancelPhotoUploadBtn.addEventListener('click', function () {
             if (activePhotoUploadXhr) {
