@@ -68,6 +68,10 @@
             <button type="button" id="choose-photos-btn" class="secondary">Choose Photos</button>
             <p id="photo-selection-status" class="small-note">No photos selected yet.</p>
             <p id="photo-files-validation" class="field-validation" hidden>Please choose at least one photo.</p>
+            <div id="photo-preview-wrap" class="photo-preview-wrap" hidden>
+              <p class="small-note">Selected photos</p>
+              <div id="photo-preview-grid" class="photo-preview-grid"></div>
+            </div>
 
             <button type="submit" id="upload-photos-submit-btn" disabled>Upload Photos</button>
             <button type="button" id="cancel-photo-upload-btn" class="secondary" hidden>Cancel Upload</button>
@@ -341,6 +345,8 @@
         const cancelPhotoUploadBtn = document.getElementById('cancel-photo-upload-btn');
         const photoNameValidation = document.getElementById('photo-name-validation');
         const photoFilesValidation = document.getElementById('photo-files-validation');
+        const photoPreviewWrap = document.getElementById('photo-preview-wrap');
+        const photoPreviewGrid = document.getElementById('photo-preview-grid');
 
         if (
           photoForm &&
@@ -353,10 +359,13 @@
           photoStatus &&
           cancelPhotoUploadBtn &&
           photoNameValidation &&
-          photoFilesValidation
+          photoFilesValidation &&
+          photoPreviewWrap &&
+          photoPreviewGrid
         ) {
           let activePhotoUploadXhr = null;
           let allowPhotoPageLeave = false;
+          let photoPreviewUrls = [];
 
           function setPhotoUploadBusyState(isBusy) {
             photoUploadBusy = isBusy;
@@ -386,6 +395,51 @@
                 photoProgress.hidden = true;
               }
             }
+          }
+
+          function clearPhotoPreview() {
+            photoPreviewUrls.forEach(function (url) {
+              URL.revokeObjectURL(url);
+            });
+            photoPreviewUrls = [];
+            photoPreviewGrid.innerHTML = '';
+            photoPreviewWrap.hidden = true;
+          }
+
+          function refreshPhotoPreview() {
+            const files = Array.from(photoInput.files || []);
+            if (files.length === 0) {
+              clearPhotoPreview();
+              return;
+            }
+
+            clearPhotoPreview();
+            const maxPreview = 10;
+            const shownFiles = files.slice(0, maxPreview);
+            shownFiles.forEach(function (file, idx) {
+              const previewUrl = URL.createObjectURL(file);
+              photoPreviewUrls.push(previewUrl);
+
+              const figure = document.createElement('figure');
+              figure.className = 'photo-preview-item';
+
+              const img = document.createElement('img');
+              img.src = previewUrl;
+              img.alt = `Selected photo ${idx + 1}`;
+              img.loading = 'lazy';
+
+              figure.appendChild(img);
+              photoPreviewGrid.appendChild(figure);
+            });
+
+            if (files.length > maxPreview) {
+              const more = document.createElement('p');
+              more.className = 'small-note';
+              more.textContent = `+${files.length - maxPreview} more selected`;
+              photoPreviewGrid.appendChild(more);
+            }
+
+            photoPreviewWrap.hidden = false;
           }
 
           cancelPhotoUploadBtn.addEventListener('click', function () {
@@ -494,6 +548,7 @@
           });
           photoInput.addEventListener('change', function () {
             photoFilesValidation.hidden = !!(photoInput.files && photoInput.files.length > 0);
+            refreshPhotoPreview();
           });
 
           window.addEventListener('beforeunload', function (event) {

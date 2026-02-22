@@ -277,6 +277,36 @@ button.upload-tab-btn.active:hover {
   color: #9a2e56;
 }
 
+.photo-preview-wrap {
+  border: 1px solid rgba(240, 201, 216, 0.78);
+  background: rgba(255, 252, 253, 0.8);
+  border-radius: 12px;
+  padding: 0.6rem;
+}
+
+.photo-preview-wrap .small-note {
+  margin-bottom: 0.45rem;
+}
+
+.photo-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 0.45rem;
+}
+
+.photo-preview-item {
+  margin: 0;
+}
+
+.photo-preview-item img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(240, 201, 216, 0.9);
+  box-shadow: 0 6px 14px rgba(133, 52, 86, 0.12);
+}
+
 input,
 button {
   font: inherit;
