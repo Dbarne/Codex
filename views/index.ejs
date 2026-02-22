@@ -29,6 +29,7 @@
           <li><strong>Step 2:</strong> Choose photos or videos</li>
           <li><strong>Step 3:</strong> Keep this page open until complete</li>
         </ol>
+        <p class="small-note">Having trouble on mobile? <a href="/quick-photo">Use quick photo upload</a>.</p>
 
         <% if (message) { %>
           <p class="alert success"><%= message %></p>
@@ -156,6 +157,7 @@
         const buttons = Array.from(document.querySelectorAll('[data-tab-btn]'));
         const panels = Array.from(document.querySelectorAll('[data-upload-panel]'));
         const initialTab = uploadSection.getAttribute('data-active-tab') === 'videos' ? 'videos' : 'photos';
+        const uploaderNameStorageKey = 'danAbiUploaderName';
         const confirmModal = document.getElementById('upload-confirm-modal');
         const confirmText = document.getElementById('upload-confirm-text');
         const confirmContinueBtn = document.getElementById('upload-confirm-continue');
@@ -216,6 +218,27 @@
               closeConfirmModal(false);
             };
           });
+        }
+
+        function readSavedUploaderName() {
+          try {
+            return localStorage.getItem(uploaderNameStorageKey) || '';
+          } catch (_error) {
+            return '';
+          }
+        }
+
+        function saveUploaderName(value) {
+          try {
+            const trimmed = String(value || '').trim();
+            if (trimmed) {
+              localStorage.setItem(uploaderNameStorageKey, trimmed);
+            } else {
+              localStorage.removeItem(uploaderNameStorageKey);
+            }
+          } catch (_error) {
+            // Ignore localStorage failures.
+          }
         }
 
         function setActiveTab(tabName) {
@@ -400,6 +423,11 @@
             }
           }
 
+          const savedName = readSavedUploaderName();
+          if (savedName && !photoNameInput.value.trim()) {
+            photoNameInput.value = savedName;
+          }
+
           function clearPhotoPreview() {
             photoPreviewUrls.forEach(function (url) {
               URL.revokeObjectURL(url);
@@ -529,9 +557,18 @@
                 }
 
                 if (payload && payload.redirectUrl) {
+                  photoProgressBar.style.width = '100%';
+                  setPhotoUploadingUiState(
+                    true,
+                    xhr.status >= 400
+                      ? 'Upload finished with an issue. Redirecting with details...'
+                      : 'Upload complete. Redirecting...'
+                  );
                   setPhotoUploadBusyState(false);
                   allowPhotoPageLeave = true;
-                  window.location.href = payload.redirectUrl;
+                  window.setTimeout(function () {
+                    window.location.href = payload.redirectUrl;
+                  }, 550);
                   return;
                 }
 
@@ -558,6 +595,10 @@
 
           photoNameInput.addEventListener('input', function () {
             photoNameValidation.hidden = photoNameInput.value.trim().length > 0;
+            saveUploaderName(photoNameInput.value);
+            if (videoNameInput) {
+              videoNameInput.value = photoNameInput.value;
+            }
           });
           photoInput.addEventListener('change', function () {
             photoFilesValidation.hidden = !!(photoInput.files && photoInput.files.length > 0);
@@ -666,6 +707,11 @@
             }
           }
 
+          const savedName = readSavedUploaderName();
+          if (savedName && !videoNameInput.value.trim()) {
+            videoNameInput.value = savedName;
+          }
+
           cancelVideoUploadBtn.addEventListener('click', function () {
             if (activeVideoUploadXhr) {
               activeVideoUploadXhr.abort();
@@ -741,9 +787,18 @@
                 }
 
                 if (payload && payload.redirectUrl) {
+                  videoProgressBar.style.width = '100%';
+                  setUploadingUiState(
+                    true,
+                    xhr.status >= 400
+                      ? 'Upload finished with an issue. Redirecting with details...'
+                      : 'Upload complete. Redirecting...'
+                  );
                   setVideoUploadBusyState(false);
                   allowPageLeave = true;
-                  window.location.href = payload.redirectUrl;
+                  window.setTimeout(function () {
+                    window.location.href = payload.redirectUrl;
+                  }, 550);
                   return;
                 }
 
@@ -770,6 +825,10 @@
 
           videoNameInput.addEventListener('input', function () {
             videoNameValidation.hidden = videoNameInput.value.trim().length > 0;
+            saveUploaderName(videoNameInput.value);
+            if (photoNameInput) {
+              photoNameInput.value = videoNameInput.value;
+            }
           });
           videoInput.addEventListener('change', function () {
             videoFilesValidation.hidden = !!(videoInput.files && videoInput.files.length > 0);

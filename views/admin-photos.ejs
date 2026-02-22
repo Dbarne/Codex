@@ -57,6 +57,58 @@
         <p class="alert error"><%= error %></p>
       <% } %>
 
+      <section class="admin-insights-grid">
+        <article class="card">
+          <h2>Export Health</h2>
+          <p><strong>ZIP support:</strong> <%= exportHealth.zipAvailable ? 'Available' : 'Unavailable' %></p>
+          <p><strong>Missing photos on disk:</strong> <%= exportHealth.missingPhotos %></p>
+          <p><strong>Missing videos on disk:</strong> <%= exportHealth.missingVideos %></p>
+          <p>
+            <strong>Free disk space:</strong>
+            <%= exportHealth.freeDiskMb === null ? 'Unknown' : (exportHealth.freeDiskMb + ' MB') %>
+          </p>
+          <% if (exportHealth.warnings.length > 0) { %>
+            <% exportHealth.warnings.forEach((warning) => { %>
+              <p class="small-note"><strong>Warning:</strong> <%= warning %></p>
+            <% }) %>
+          <% } else { %>
+            <p class="small-note">No export health warnings.</p>
+          <% } %>
+          <p class="small-note">
+            JSON endpoint:
+            <a href="/admin/export-health" target="_blank" rel="noreferrer">/admin/export-health</a>
+          </p>
+        </article>
+
+        <article class="card">
+          <h2>Upload Analytics</h2>
+          <% if (!analytics.topUploaders.length) { %>
+            <p class="small-note">No upload activity yet.</p>
+          <% } else { %>
+            <ul class="insight-list">
+              <% analytics.topUploaders.forEach((uploader) => { %>
+                <li>
+                  <strong><%= uploader.name %></strong>:
+                  <%= uploader.photo_count %> photos,
+                  <%= uploader.video_count %> videos,
+                  <%= (uploader.total_bytes / (1024 * 1024)).toFixed(1) %> MB total
+                </li>
+              <% }) %>
+            </ul>
+          <% } %>
+          <h3 class="small-heading">Last 7 days</h3>
+          <% if (!analytics.uploadVolume.length) { %>
+            <p class="small-note">No uploads recorded.</p>
+          <% } else { %>
+            <ul class="insight-list">
+              <% analytics.uploadVolume.forEach((day) => { %>
+                <li><strong><%= day.day %></strong>: <%= day.photo_count %> photos, <%= day.video_count %> videos</li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </article>
+      </section>
+
       <section class="photo-grid">
         <% if (mediaItems.length === 0) { %>
           <section class="card">

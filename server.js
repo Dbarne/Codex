@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFile, spawnSync } = require('child_process');
 const { promisify } = require('util');
 const express = require('express');
 const session = require('express-session');
@@ -16,11 +16,23 @@ const MAX_VIDEOS_PER_PERSON = Number(process.env.MAX_VIDEOS_PER_PERSON || 10);
 const MAX_TOTAL_VIDEOS = Number(process.env.MAX_TOTAL_VIDEOS || 400);
 const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_VIDEO_SIZE_MB || 1200);
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+const UPLOAD_TIMEOUT_MS = Number(process.env.UPLOAD_TIMEOUT_MS || 1000 * 60 * 25);
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const configuredBaseUrl = (process.env.BASE_URL || '').trim().replace(/\/+$/, '');
 const execFileAsync = promisify(execFile);
+
+function hasZipCommand() {
+  try {
+    const result = spawnSync('zip', ['-v'], { stdio: 'ignore' });
+    return result.status === 0;
+  } catch (_error) {
+    return false;
+  }
+}
+
+const ZIP_AVAILABLE = hasZipCommand();
 
 const dataDir = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
@@ -228,12 +240,157 @@ function uploadTabFromRequest(req) {
   return req.path === '/upload/videos' ? 'videos' : 'photos';
 }
 
+function getMediaKindByTab(tab) {
+  return tab === 'videos' ? 'video' : 'photo';
+}
+
+function duplicateExists(tableName, uploaderId, file) {
+  const row = db
+    .prepare(
+      `
+      SELECT id
+      FROM ${tableName}
+      WHERE uploader_id = ?
+        AND original_name = ?
+        AND mime_type = ?
+        AND size = ?
+      LIMIT 1
+    `
+    )
+    .get(uploaderId, file.originalname, file.mimetype, file.size);
+  return Boolean(row);
+}
+
+function splitDuplicateFiles(tableName, uploaderId, files) {
+  const uniqueFiles = [];
+  const duplicateFiles = [];
+  const seenFingerprints = new Set();
+
+  for (const file of files) {
+    const fingerprint = `${file.originalname}::${file.mimetype}::${file.size}`;
+    if (seenFingerprints.has(fingerprint) || duplicateExists(tableName, uploaderId, file)) {
+      duplicateFiles.push(file);
+      continue;
+    }
+    seenFingerprints.add(fingerprint);
+    uniqueFiles.push(file);
+  }
+
+  return { uniqueFiles, duplicateFiles };
+}
+
 function parsePage(value) {
   const parsed = Number.parseInt(String(value || ''), 10);
   if (Number.isNaN(parsed) || parsed < 1) {
     return 1;
   }
   return parsed;
+}
+
+function getUploadAnalytics() {
+  const topUploaders = db
+    .prepare(
+      `
+      SELECT
+        u.id,
+        u.name,
+        COALESCE(p.photo_count, 0) AS photo_count,
+        COALESCE(v.video_count, 0) AS video_count,
+        COALESCE(p.photo_bytes, 0) + COALESCE(v.video_bytes, 0) AS total_bytes
+      FROM uploaders u
+      LEFT JOIN (
+        SELECT uploader_id, COUNT(*) AS photo_count, COALESCE(SUM(size), 0) AS photo_bytes
+        FROM photos
+        GROUP BY uploader_id
+      ) p ON p.uploader_id = u.id
+      LEFT JOIN (
+        SELECT uploader_id, COUNT(*) AS video_count, COALESCE(SUM(size), 0) AS video_bytes
+        FROM videos
+        GROUP BY uploader_id
+      ) v ON v.uploader_id = u.id
+      WHERE COALESCE(p.photo_count, 0) > 0 OR COALESCE(v.video_count, 0) > 0
+      ORDER BY (COALESCE(p.photo_count, 0) + COALESCE(v.video_count, 0)) DESC, u.name ASC
+      LIMIT 5
+    `
+    )
+    .all();
+
+  const uploadVolume = db
+    .prepare(
+      `
+      SELECT
+        day,
+        SUM(photo_count) AS photo_count,
+        SUM(video_count) AS video_count
+      FROM (
+        SELECT DATE(uploaded_at) AS day, COUNT(*) AS photo_count, 0 AS video_count
+        FROM photos
+        GROUP BY DATE(uploaded_at)
+        UNION ALL
+        SELECT DATE(uploaded_at) AS day, 0 AS photo_count, COUNT(*) AS video_count
+        FROM videos
+        GROUP BY DATE(uploaded_at)
+      )
+      GROUP BY day
+      ORDER BY day DESC
+      LIMIT 7
+    `
+    )
+    .all()
+    .reverse();
+
+  return {
+    topUploaders,
+    uploadVolume
+  };
+}
+
+function getExportHealth() {
+  const photoRows = db.prepare('SELECT filename FROM photos').all();
+  const videoRows = db.prepare('SELECT filename FROM videos').all();
+
+  let missingPhotos = 0;
+  for (const row of photoRows) {
+    if (!fs.existsSync(path.join(uploadDir, row.filename))) {
+      missingPhotos += 1;
+    }
+  }
+
+  let missingVideos = 0;
+  for (const row of videoRows) {
+    if (!fs.existsSync(path.join(uploadDir, row.filename))) {
+      missingVideos += 1;
+    }
+  }
+
+  let freeDiskMb = null;
+  try {
+    if (typeof fs.statfsSync === 'function') {
+      const stat = fs.statfsSync(uploadDir);
+      freeDiskMb = Math.floor(((stat.bavail || 0) * (stat.bsize || 0)) / (1024 * 1024));
+    }
+  } catch (_error) {
+    freeDiskMb = null;
+  }
+
+  const warnings = [];
+  if (!ZIP_AVAILABLE) {
+    warnings.push('ZIP command is unavailable; admin download archives may fail.');
+  }
+  if (missingPhotos > 0 || missingVideos > 0) {
+    warnings.push('Some database records reference files missing on disk.');
+  }
+  if (freeDiskMb !== null && freeDiskMb < 1024) {
+    warnings.push('Available disk space is low (under 1GB free).');
+  }
+
+  return {
+    zipAvailable: ZIP_AVAILABLE,
+    missingPhotos,
+    missingVideos,
+    freeDiskMb,
+    warnings
+  };
 }
 
 function sendUploadResponse(req, res, tab, kind, message, isError = false) {
@@ -248,6 +405,31 @@ function sendUploadResponse(req, res, tab, kind, message, isError = false) {
   }
   return res.redirect(redirectUrl);
 }
+
+app.use((req, res, next) => {
+  if (req.path !== '/upload' && req.path !== '/upload/videos') {
+    return next();
+  }
+
+  req.setTimeout(UPLOAD_TIMEOUT_MS);
+  res.setTimeout(UPLOAD_TIMEOUT_MS, () => {
+    if (res.headersSent) {
+      return;
+    }
+    const tab = uploadTabFromRequest(req);
+    const mediaKind = getMediaKindByTab(tab);
+    sendUploadResponse(
+      req,
+      res,
+      tab,
+      mediaKind,
+      'Upload timed out on the server. Please try again on a strong connection with fewer files at once.',
+      true
+    );
+  });
+
+  return next();
+});
 
 function resolveBaseUrl(req) {
   if (configuredBaseUrl) {
@@ -280,6 +462,13 @@ app.get('/', async (req, res) => {
     maxVideoSizeMb: MAX_VIDEO_SIZE_MB,
     totalVideoCount,
     activeTab,
+    message: req.query.message || '',
+    error: req.query.error || ''
+  });
+});
+
+app.get('/quick-photo', (req, res) => {
+  res.render('quick-photo', {
     message: req.query.message || '',
     error: req.query.error || ''
   });
@@ -320,6 +509,13 @@ app.post('/upload', photoUpload.array('photos', MAX_PHOTOS_PER_PERSON), (req, re
     const rejectedFiles = uploadedFiles.slice(allowedNow);
     rejectedFiles.forEach((f) => safeUnlink(f.path));
 
+    const { uniqueFiles: uniqueAcceptedFiles, duplicateFiles } = splitDuplicateFiles(
+      'photos',
+      uploader.id,
+      acceptedFiles
+    );
+    duplicateFiles.forEach((f) => safeUnlink(f.path));
+
     const insertPhoto = db.prepare(
       'INSERT INTO photos (uploader_id, filename, original_name, mime_type, size) VALUES (?, ?, ?, ?, ?)'
     );
@@ -330,14 +526,18 @@ app.post('/upload', photoUpload.array('photos', MAX_PHOTOS_PER_PERSON), (req, re
       }
     });
 
-    transaction(acceptedFiles);
+    transaction(uniqueAcceptedFiles);
 
-    const uploadedCount = acceptedFiles.length;
+    const uploadedCount = uniqueAcceptedFiles.length;
     const limitedCount = rejectedFiles.length;
+    const duplicateCount = duplicateFiles.length;
 
     let message = `Thanks ${uploader.name}! Uploaded ${uploadedCount} photo${uploadedCount === 1 ? '' : 's'}.`;
     if (limitedCount > 0) {
       message += ` ${limitedCount} photo${limitedCount === 1 ? ' was' : 's were'} skipped due to upload limits.`;
+    }
+    if (duplicateCount > 0) {
+      message += ` ${duplicateCount} duplicate photo${duplicateCount === 1 ? ' was' : 's were'} skipped.`;
     }
 
     return sendUploadResponse(req, res, 'photos', 'photo', message, false);
@@ -382,6 +582,13 @@ app.post('/upload/videos', videoUpload.array('videos', MAX_VIDEOS_PER_PERSON), (
     const rejectedFiles = uploadedFiles.slice(allowedNow);
     rejectedFiles.forEach((f) => safeUnlink(f.path));
 
+    const { uniqueFiles: uniqueAcceptedFiles, duplicateFiles } = splitDuplicateFiles(
+      'videos',
+      uploader.id,
+      acceptedFiles
+    );
+    duplicateFiles.forEach((f) => safeUnlink(f.path));
+
     const insertVideo = db.prepare(
       'INSERT INTO videos (uploader_id, filename, original_name, mime_type, size) VALUES (?, ?, ?, ?, ?)'
     );
@@ -392,14 +599,18 @@ app.post('/upload/videos', videoUpload.array('videos', MAX_VIDEOS_PER_PERSON), (
       }
     });
 
-    transaction(acceptedFiles);
+    transaction(uniqueAcceptedFiles);
 
-    const uploadedCount = acceptedFiles.length;
+    const uploadedCount = uniqueAcceptedFiles.length;
     const limitedCount = rejectedFiles.length;
+    const duplicateCount = duplicateFiles.length;
 
     let message = `Thanks ${uploader.name}! Uploaded ${uploadedCount} video${uploadedCount === 1 ? '' : 's'}.`;
     if (limitedCount > 0) {
       message += ` ${limitedCount} video${limitedCount === 1 ? ' was' : 's were'} skipped due to upload limits.`;
+    }
+    if (duplicateCount > 0) {
+      message += ` ${duplicateCount} duplicate video${duplicateCount === 1 ? ' was' : 's were'} skipped.`;
     }
 
     return sendUploadResponse(req, res, 'videos', 'video', message, false);
@@ -481,6 +692,8 @@ function renderAdminMedia(req, res, activeTab) {
     `
     )
     .all(PAGE_SIZE, safeOffset);
+  const analytics = getUploadAnalytics();
+  const exportHealth = getExportHealth();
 
   res.render('admin-photos', {
     activeTab,
@@ -495,6 +708,8 @@ function renderAdminMedia(req, res, activeTab) {
     videoCount: videos,
     page: safePage,
     totalPages: totalPages,
+    analytics,
+    exportHealth,
     message: req.query.message || '',
     error: req.query.error || ''
   });
@@ -506,6 +721,13 @@ app.get('/admin/photos', requireAdmin, (req, res) => {
 
 app.get('/admin/videos', requireAdmin, (req, res) => {
   renderAdminMedia(req, res, 'videos');
+});
+
+app.get('/admin/export-health', requireAdmin, (req, res) => {
+  return res.json({
+    ok: true,
+    health: getExportHealth()
+  });
 });
 
 app.get('/admin/photo/:id', requireAdmin, (req, res) => {
@@ -747,12 +969,29 @@ app.use((err, _req, res, _next) => {
 
   if (err) {
     const uploadTab = uploadTabFromRequest(_req);
+    const code = String(err.code || '').toUpperCase();
+    const rawMessage = String(err.message || '');
+    let safeMessage = rawMessage || 'Unexpected error occurred.';
+
+    if (code === 'ETIMEDOUT' || code === 'ECONNRESET' || code === 'ECONNABORTED') {
+      safeMessage =
+        'Upload connection was interrupted. Please try again on a strong connection with fewer files.';
+    } else if (/request aborted/i.test(rawMessage)) {
+      safeMessage = 'Upload was cancelled before completion. Please select files and try again.';
+    } else if (/database is locked/i.test(rawMessage)) {
+      safeMessage = 'Server is busy processing other uploads. Please wait a moment and try again.';
+    }
+
     if (String(_req.query.ajax || '') === '1') {
       return res
         .status(500)
-        .json({ ok: false, message: err.message || 'Unexpected error occurred.', redirectUrl: `/?tab=${uploadTab}&error=${encodeURIComponent(err.message || 'Unexpected error occurred.')}` });
+        .json({
+          ok: false,
+          message: safeMessage,
+          redirectUrl: `/?tab=${uploadTab}&error=${encodeURIComponent(safeMessage)}`
+        });
     }
-    return res.redirect(`/?tab=${uploadTab}&error=` + encodeURIComponent(err.message || 'Unexpected error occurred.'));
+    return res.redirect(`/?tab=${uploadTab}&error=` + encodeURIComponent(safeMessage));
   }
 
   return res.status(500).send('Unexpected server error');

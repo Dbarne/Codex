@@ -85,6 +85,10 @@ function makeRes() {
       this.rendered = { view, data };
       return this;
     },
+    json(data) {
+      this.body = data;
+      return this;
+    },
     send(data) {
       this.body = data;
       return this;
@@ -151,6 +155,7 @@ test('server route logic coverage', async () => {
 
   try {
     const getRoot = routeHandlers(app, 'get', '/')[0];
+    const getQuickPhoto = routeHandlers(app, 'get', '/quick-photo')[0];
     const postUpload = routeHandlers(app, 'post', '/upload').at(-1);
     const postUploadVideos = routeHandlers(app, 'post', '/upload/videos').at(-1);
     const getAdminLogin = routeHandlers(app, 'get', '/admin/login')[0];
@@ -158,6 +163,7 @@ test('server route logic coverage', async () => {
     const postAdminLogout = routeHandlers(app, 'post', '/admin/logout')[0];
     const getAdminPhotos = routeHandlers(app, 'get', '/admin/photos').at(-1);
     const getAdminVideos = routeHandlers(app, 'get', '/admin/videos').at(-1);
+    const getAdminExportHealth = routeHandlers(app, 'get', '/admin/export-health').at(-1);
     const getAdminPhoto = routeHandlers(app, 'get', '/admin/photo/:id').at(-1);
     const postAdminPhotoDelete = routeHandlers(app, 'post', '/admin/photo/:id/delete').at(-1);
     const postDeleteAllPhotos = routeHandlers(app, 'post', '/admin/photos/delete-all').at(-1);
@@ -243,6 +249,38 @@ test('server route logic coverage', async () => {
     res = makeRes();
     await invoke(postUpload, req, res);
     assert.match(decodeURIComponent(res.redirectedTo), /Uploaded 1 photo/);
+
+    req = makeReq({
+      path: '/upload',
+      body: { name: 'DupePhoto' },
+      files: [
+        makeUploadedFile(uploadDir, {
+          ext: '.jpg',
+          originalname: 'dupe-photo.jpg',
+          mimetype: 'image/jpeg',
+          content: Buffer.alloc(4096, 1)
+        })
+      ]
+    });
+    res = makeRes();
+    await invoke(postUpload, req, res);
+    assert.match(decodeURIComponent(res.redirectedTo), /Uploaded 1 photo/);
+
+    req = makeReq({
+      path: '/upload',
+      body: { name: 'DupePhoto' },
+      files: [
+        makeUploadedFile(uploadDir, {
+          ext: '.jpg',
+          originalname: 'dupe-photo.jpg',
+          mimetype: 'image/jpeg',
+          content: Buffer.alloc(4096, 1)
+        })
+      ]
+    });
+    res = makeRes();
+    await invoke(postUpload, req, res);
+    assert.match(decodeURIComponent(res.redirectedTo), /duplicate photo/);
 
     {
       const uploader = db.prepare('SELECT id FROM uploaders WHERE normalized_name = ?').get('alice');
@@ -406,6 +444,12 @@ test('server route logic coverage', async () => {
     assert.equal(res.rendered.view, 'admin-login');
     assert.equal(res.rendered.data.error, 'bad');
 
+    req = makeReq({ query: { message: 'ok' } });
+    res = makeRes();
+    await invoke(getQuickPhoto, req, res);
+    assert.equal(res.rendered.view, 'quick-photo');
+    assert.equal(res.rendered.data.message, 'ok');
+
     req = makeReq({ session: { isAdmin: true } });
     res = makeRes();
     await invoke(getAdminLogin, req, res);
@@ -450,6 +494,12 @@ test('server route logic coverage', async () => {
     res = makeRes();
     await invoke(getAdminVideos, req, res);
     assert.equal(res.rendered.data.activeTab, 'videos');
+
+    req = makeReq({ session: { isAdmin: true } });
+    res = makeRes();
+    await invoke(getAdminExportHealth, req, res);
+    assert.equal(res.body.ok, true);
+    assert.equal(typeof res.body.health.missingPhotos, 'number');
 
     req = makeReq({ params: { id: 'abc' } });
     res = makeRes();

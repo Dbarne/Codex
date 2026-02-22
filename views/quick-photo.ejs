@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Wedding Photo Upload</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body class="guest-page">
+    <main class="container narrow">
+      <section class="card hero">
+        <p class="eyebrow">Quick Fallback Upload</p>
+        <p class="wedding-title">Dan and Abi&apos;s Wedding</p>
+        <h1>Quick Photo Upload</h1>
+        <p class="small-note">Use this lightweight page if your phone is having trouble with the full uploader.</p>
+      </section>
+
+      <% if (message) { %>
+        <p class="alert success"><%= message %></p>
+      <% } %>
+
+      <% if (error) { %>
+        <p class="alert error"><%= error %></p>
+      <% } %>
+
+      <section class="card">
+        <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+          <label for="quick-name">Your name</label>
+          <input id="quick-name" name="name" type="text" maxlength="120" required />
+
+          <label for="quick-photo">Photo</label>
+          <input id="quick-photo" name="photos" type="file" accept="image/*" required />
+
+          <button type="submit">Upload Photo</button>
+        </form>
+      </section>
+
+      <section class="card admin-link">
+        <a href="/">Back to main upload page</a>
+      </section>
+    </main>
+  </body>
+</html>
